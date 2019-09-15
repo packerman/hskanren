@@ -17,7 +17,7 @@ type Substitution a v = M.Map v (Expr a v)
 emptyS = M.empty
 
 -- |
--- >>> let [u, v, w, x, y, z] = ['u'..'z']
+-- >>> let [v, w, x, y, z] = ['v'..'z']
 -- >>> walk (Variable z) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
 -- Value 'a'
 -- >>> walk (Variable y) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
@@ -33,9 +33,9 @@ emptyS = M.empty
 -- >>> walk (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
 -- Cons (Variable 'x') (Cons (Value 'e') (Cons (Variable 'z') Nil))
 walk :: Ord v => Expr a v -> Substitution a v -> Expr a v
-walk vx@(Variable x) s = case M.lookup x s of
+walk v@(Variable x) s = case M.lookup x s of
                             Just e -> walk e s
-                            _ -> vx
+                            _ -> v
 walk e _ = e
 
 -- |
@@ -45,9 +45,9 @@ walk e _ = e
 -- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
 -- True
 occurs :: Ord v => v -> (Expr a v) -> Substitution a v -> Bool
-occurs v e s = case walk (Variable v) s of
-                (Variable x) -> v == x
-                (Cons a d) -> occurs v a s || occurs v d s
+occurs x v s = case walk v s of
+                (Variable y) -> y == x
+                (Cons a d) -> occurs x a s || occurs x d s
                 _ -> False
 
 -- |
