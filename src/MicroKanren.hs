@@ -47,6 +47,29 @@ failure = \s -> []
 
 -- |
 -- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptyS
+-- [fromList [('x',Value "olive")],fromList [('x',Value "oil")]]
+disj2 :: Goal a v -> Goal a v -> Goal a v
+disj2 g1 g2 =
+    \s -> interleave (g1 s) (g2 s)
+    where
+        interleave :: [a] -> [a] -> [a]
+        interleave (x:xs) y = x : interleave y xs
+        interleave _ y = y
+
+-- |
+-- >> head $ nevero emptyS
+-- ()
+-- >> head $ (disj2 (Value "olive" === Variable 'x') nevero) emptyS
+-- fromList [('x',Value "olive")]
+-- >> (disj2 nevero (Value "olive" === Variable 'x')) emptyS
+-- fromList [('x',Value "olive")]
+nevero :: Goal a v
+nevero =
+    \s -> nevero s
+
+-- |
+-- >>> let [x, y] = Variable <$> ['x', 'y']
 -- >>> let [a, e] = Value <$> ['a', 'e']
 -- >>> unify x a emptyS
 -- Just (fromList [('x',Value 'a')])
@@ -148,3 +171,19 @@ getAndInc :: Counter -> (Int, Counter)
 getAndInc (Counter n) = (n, Counter $ n + 1)
 
 defaultCounter = Counter 0
+
+
+-- TODO delete if isn't used
+newtype Suspensed a = Suspensed (() -> a)
+
+suspend :: a -> Suspensed a
+suspend x = Suspensed $ \() -> x
+
+force :: Suspensed a -> a
+force (Suspensed s) = s ()
+
+instance Eq a => Eq (Suspensed a) where
+    _ == _ = False
+
+instance Show (Suspensed a) where
+    show _ = "#suspended"
