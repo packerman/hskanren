@@ -69,6 +69,15 @@ nevero =
     \s -> nevero s
 
 -- |
+-- >>> head $ alwayso emptyS
+-- fromList []
+-- >>> take 3 $ alwayso emptyS
+-- [fromList [],fromList [],fromList []]
+alwayso :: Goal a v
+alwayso =
+    \s -> (disj2 success alwayso) s
+
+-- |
 -- >>> let [x, y] = Variable <$> ['x', 'y']
 -- >>> let [a, e] = Value <$> ['a', 'e']
 -- >>> unify x a emptyS
