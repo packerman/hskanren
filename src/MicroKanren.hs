@@ -39,7 +39,23 @@ walk v@(Variable x) s = case M.lookup x s of
 walk e _ = e
 
 -- |
--- >>> let [x, y] = ['x'..'y']
+-- >>> let [x, y, z] = ['x'..'z']
+-- >>> extS x (list [Variable x]) emptyS
+-- Nothing
+-- >>> extS x (list [Variable y]) (M.fromList [(y, Variable x)])
+-- Nothing
+-- >>> :{ 
+--    let s = M.fromList [(z, Variable x), (y, Variable z)]
+--        in walk (Variable y) <$> (extS x (Value 'e') s)
+-- :}
+-- Just (Value 'e')
+extS :: Ord v => v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
+extS x v s = if occurs x v s 
+                then Nothing
+                else Just $ M.insert x v s
+
+-- |
+-- >>> let [x, y] = ['x', 'y']
 -- >>> occurs x (Variable x) emptyS
 -- True 
 -- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
