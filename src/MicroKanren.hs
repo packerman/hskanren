@@ -3,6 +3,7 @@ module MicroKanren where
 
 import Control.Monad.State
 import qualified Data.Map as M
+import Data.Maybe
 
 data Expr a v = Value a |
                 Variable v |
@@ -15,6 +16,34 @@ type EvalM = State Counter
 type Substitution a v = M.Map v (Expr a v)
 
 emptyS = M.empty
+
+type Goal a v = Substitution a v -> [Substitution a v]
+
+-- |
+-- >>> (Value True === Value False) emptyS
+-- []
+-- >>> (Value False === Value False) emptyS
+-- [fromList []]
+-- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> (x === y) emptyS
+-- [fromList [('x',Variable 'y')]]
+-- >>> (y === x) emptyS
+-- [fromList [('y',Variable 'x')]]
+(===) :: (Eq a, Ord v) => Expr a v -> Expr a v -> Goal a v
+u === v =
+    \s -> maybeToList $ unify u v s
+
+-- |
+-- >>> success emptyS
+-- [fromList []]
+success :: Goal a v
+success = pure
+
+-- |
+-- >>> failure emptyS
+-- []
+failure :: Goal a v
+failure = \s -> []
 
 -- |
 -- >>> let [x, y] = Variable <$> ['x', 'y']
