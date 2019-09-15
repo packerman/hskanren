@@ -39,6 +39,18 @@ walk vx@(Variable x) s = case M.lookup x s of
 walk e _ = e
 
 -- |
+-- >>> let [x, y] = ['x'..'y']
+-- >>> occurs x (Variable x) emptyS
+-- True 
+-- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
+-- True
+occurs :: Ord v => v -> (Expr a v) -> Substitution a v -> Bool
+occurs v e s = case walk (Variable v) s of
+                (Variable x) -> v == x
+                (Cons a d) -> occurs v a s || occurs v d s
+                _ -> False
+
+-- |
 -- >>> list [Value 1, Value 2, Value 3, Value 4]
 -- Cons (Value 1) (Cons (Value 2) (Cons (Value 3) (Cons (Value 4) Nil)))
 list :: [Expr a v] -> Expr a v
