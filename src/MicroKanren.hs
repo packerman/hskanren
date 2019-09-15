@@ -17,6 +17,28 @@ type Substitution a v = M.Map v (Expr a v)
 emptyS = M.empty
 
 -- |
+-- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> let [a, e] = Value <$> ['a', 'e']
+-- >>> unify x a emptyS
+-- Just (fromList [('x',Value 'a')])
+-- >>> unify a y emptyS
+-- Just (fromList [('y',Value 'a')])
+-- >>> unify (Cons x a) (Cons e y) emptyS
+-- Just (fromList [('x',Value 'e'),('y',Value 'a')])
+-- >>> unify (Cons a x) (Cons e y) emptyS
+-- Nothing
+unify :: (Eq a, Ord v) => Expr a v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
+unify u v s = 
+    let u' = walk u s
+        v' = walk v s in
+            if u' == v' then Just s
+            else case (u', v') of
+                    (Variable x, _) -> extS x v' s
+                    (_, Variable y) -> extS y u' s
+                    (Cons ua ud, Cons va vd) -> (unify ua va s) >>= (unify ud vd)
+                    _ -> Nothing
+
+-- |
 -- >>> let [v, w, x, y, z] = ['v'..'z']
 -- >>> walk (Variable z) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
 -- Value 'a'
