@@ -75,6 +75,9 @@ nevero = nevero
 alwayso :: Goal a v
 alwayso = disj2 success alwayso
 
+conj2 :: Goal a v -> Goal a v -> Goal a v
+conj2 g1 g2 = concatMap g2 . g1
+
 -- |
 -- >>> let [x, y] = Variable <$> ['x', 'y']
 -- >>> let [a, e] = Value <$> ['a', 'e']
