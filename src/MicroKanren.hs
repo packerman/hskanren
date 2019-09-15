@@ -65,8 +65,7 @@ disj2 g1 g2 =
 -- >> (disj2 nevero (Value "olive" === Variable 'x')) emptyS
 -- fromList [('x',Value "olive")]
 nevero :: Goal a v
-nevero =
-    \s -> nevero s
+nevero = nevero
 
 -- |
 -- >>> head $ alwayso emptyS
@@ -74,8 +73,7 @@ nevero =
 -- >>> take 3 $ alwayso emptyS
 -- [fromList [],fromList [],fromList []]
 alwayso :: Goal a v
-alwayso =
-    \s -> (disj2 success alwayso) s
+alwayso = disj2 success alwayso
 
 -- |
 -- >>> let [x, y] = Variable <$> ['x', 'y']
