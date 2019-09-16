@@ -22,13 +22,26 @@ type Goal a v = Substitution a v -> [Substitution a v]
 type Var v = (Int, v)
 
 -- |
--- >>> eval $ take 1 <$> ((callFresh "kiwi" (\fruit -> (Value "plum" === fruit))) <*> pure emptyS)
+-- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
 callFresh :: v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM (Goal a (Var v))
 callFresh name f = f <$> var name 
 
-eval :: EvalM a -> a
-eval m = evalState m defaultCounter 
+-- |
+-- >>> reifyName 2
+-- "_2" 
+reifyName :: Int -> String
+reifyName n = "_" ++ show n
+
+-- |
+-- >>> let [w, x, y, z] = ['w'..'z']
+-- >>> walkMany (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
+-- Cons (Value 'b') (Cons (Value 'e') (Cons (Variable 'y') Nil))
+walkMany :: Ord v => Expr a v -> Substitution a v -> Expr a v
+walkMany v s = case walk v s of
+                (Cons a d) -> Cons (walkMany a s) (walkMany d s)
+                x -> x
+
 
 -- |
 -- >>> (Value True === Value False) emptyS
@@ -167,6 +180,9 @@ occurs x v s = case walk v s of
 -- Cons (Value 1) (Cons (Value 2) (Cons (Value 3) (Cons (Value 4) Nil)))
 list :: [Expr a v] -> Expr a v
 list = foldr Cons Nil
+
+eval :: EvalM a -> a
+eval m = evalState m defaultCounter
 
 -- |
 -- >>> :{
