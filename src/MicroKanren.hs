@@ -19,6 +19,17 @@ emptyS = M.empty
 
 type Goal a v = Substitution a v -> [Substitution a v]
 
+type Var v = (Int, v)
+
+-- |
+-- >>> eval $ take 1 <$> ((callFresh "kiwi" (\fruit -> (Value "plum" === fruit))) <*> pure emptyS)
+-- [fromList [((0,"kiwi"),Value "plum")]]
+callFresh :: v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM (Goal a (Var v))
+callFresh name f = f <$> var name 
+
+eval :: EvalM a -> a
+eval m = evalState m defaultCounter 
+
 -- |
 -- >>> (Value True === Value False) emptyS
 -- []
@@ -58,14 +69,14 @@ disj2 g1 g2 =
         interleave _ y = y
 
 -- |
--- >> head $ nevero emptyS
--- ()
--- >> head $ (disj2 (Value "olive" === Variable 'x') nevero) emptyS
+-- >>> nevero emptyS
+-- []
+-- >>> head $ (disj2 (Value "olive" === Variable 'x') nevero) emptyS
 -- fromList [('x',Value "olive")]
--- >> (disj2 nevero (Value "olive" === Variable 'x')) emptyS
+-- >>> head $ (disj2 nevero (Value "olive" === Variable 'x')) emptyS
 -- fromList [('x',Value "olive")]
 nevero :: Goal a v
-nevero = nevero
+nevero = \s -> []
 
 -- |
 -- >>> head $ alwayso emptyS
@@ -182,19 +193,3 @@ getAndInc :: Counter -> (Int, Counter)
 getAndInc (Counter n) = (n, Counter $ n + 1)
 
 defaultCounter = Counter 0
-
-
--- TODO delete if isn't used
-newtype Suspensed a = Suspensed (() -> a)
-
-suspend :: a -> Suspensed a
-suspend x = Suspensed $ \() -> x
-
-force :: Suspensed a -> a
-force (Suspensed s) = s ()
-
-instance Eq a => Eq (Suspensed a) where
-    _ == _ = False
-
-instance Show (Suspensed a) where
-    show _ = "#suspended"
