@@ -11,7 +11,7 @@ data Expr a v = Value a |
                 Cons (Expr a v) (Expr a v)
                 deriving (Eq, Show)
 
-type EvalM = State Counter
+type EvalM v = State (Counter v)
 
 type Substitution a v = M.Map v (Expr a v)
 
@@ -24,7 +24,7 @@ type Var v = (Int, v)
 -- |
 -- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
-callFresh :: v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM (Goal a (Var v))
+callFresh :: Ord v => v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM v (Goal a (Var v))
 callFresh name f = f <$> var name 
 
 -- |
@@ -181,7 +181,7 @@ occurs x v s = case walk v s of
 list :: [Expr a v] -> Expr a v
 list = foldr Cons Nil
 
-eval :: EvalM a -> a
+eval :: Ord v => EvalM v a -> a
 eval m = evalState m defaultCounter
 
 -- |
@@ -193,19 +193,20 @@ eval m = evalState m defaultCounter
 --      in evalState go defaultCounter
 -- :}
 -- (False,False,False)
-var :: v -> EvalM (Expr a (Int, v))
-var name = Variable <$> (,name) <$> state getAndInc
+var :: Ord v => v -> EvalM v (Expr a (Int, v))
+var name = Variable <$> (,name) <$> state (getAndInc name)
 
-vars :: [v] -> EvalM [Expr a (Int, v)]
-vars = traverse var
-
-data Counter = Counter Int deriving (Show)
+data Counter a = Counter (M.Map a Int) deriving (Show)
 
 -- | Return the current state of counter and increments
 -- 
--- >>> getAndInc (Counter 5)
--- (5,Counter 6)
-getAndInc :: Counter -> (Int, Counter)
-getAndInc (Counter n) = (n, Counter $ n + 1)
+-- >>> getAndInc 'a' (Counter (M.fromList [('a', 5)]))
+-- (5,Counter (fromList [('a',6)]))
+-- >>> getAndInc 'b' (Counter (M.fromList [('a', 5)]))
+-- (0,Counter (fromList [('a',5),('b',1)]))
+getAndInc :: Ord a => a -> Counter a -> (Int, Counter a)
+getAndInc k (Counter m) = let n = fromMaybe 0 $ M.lookup k m
+                            in (n, Counter $ M.insert k (n + 1) m)
 
-defaultCounter = Counter 0
+defaultCounter :: Ord a => Counter a
+defaultCounter = Counter $ M.fromList []
