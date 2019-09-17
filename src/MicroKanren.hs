@@ -21,6 +21,18 @@ type Goal a v = Substitution a v -> [Substitution a v]
 
 type Var v = (Int, v)
 
+reify :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Expr a (Var String))
+reify v =
+    \s -> let v' = walkMany v s
+              r = reifyS v' emptyS
+            in walkMany v' <$> r
+
+reifyS :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Substitution a (Var String))
+reifyS v r = case walk v r of
+                Variable x -> M.insert x <$> (var "_") <*> pure r
+                Cons a d -> (reifyS a r) >>= (reifyS d)
+                _ -> pure r
+
 -- |
 -- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
@@ -39,7 +51,7 @@ reifyName n = "_" ++ show n
 -- Cons (Value 'b') (Cons (Value 'e') (Cons (Variable 'y') Nil))
 walkMany :: Ord v => Expr a v -> Substitution a v -> Expr a v
 walkMany v s = case walk v s of
-                (Cons a d) -> Cons (walkMany a s) (walkMany d s)
+                Cons a d -> Cons (walkMany a s) (walkMany d s)
                 x -> x
 
 
@@ -171,8 +183,8 @@ extS x v s = if occurs x v s
 -- True
 occurs :: Ord v => v -> (Expr a v) -> Substitution a v -> Bool
 occurs x v s = case walk v s of
-                (Variable y) -> y == x
-                (Cons a d) -> occurs x a s || occurs x d s
+                Variable y -> y == x
+                Cons a d -> occurs x a s || occurs x d s
                 _ -> False
 
 -- |
