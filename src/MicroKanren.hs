@@ -4,9 +4,11 @@ module MicroKanren where
 import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe
+import Data.Function
 
 data Expr a v = Value a |
                 Variable v |
+                Reified Int |
                 Nil |
                 Cons (Expr a v) (Expr a v)
                 deriving (Eq, Show)
@@ -22,41 +24,31 @@ type Goal a v = Substitution a v -> [Substitution a v]
 type Var v = (Int, v)
 
 -- |
--- >>> :{
--- eval $ do
---          let names = pure <$> "uvwxyz" :: [String]
---          variables <- traverse var names
---          let [vu, vv, vw, vx, vy, vz] = variables
---          let [Variable u, Variable v, Variable w, Variable x, Variable y, Variable z] = variables
---          let [ice, corn] = Value <$> ["ice", "corn"]
---          let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
---          (reify vx) s
--- :}
--- Cons (Variable (0,"_")) (Cons (Cons (Variable (1,"_")) (Cons (Variable (0,"_")) Nil)) (Cons (Value "corn") (Cons (Variable (2,"_")) (Cons (Cons (Value "ice") (Cons (Variable (2,"_")) Nil)) Nil))))
-reify :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Expr a (Var String))
+-- >>> let names = pure <$> "uvwxyz" :: [String]
+-- >>> let variables = Variable <$> zip [0..] names
+-- >>> let [vu, vv, vw, vx, vy, vz] = variables
+-- >>> let [Variable u, Variable v, Variable w, Variable x, Variable y, Variable z] = variables
+-- >>> let [ice, corn] = Value <$> ["ice", "corn"]
+-- >>> let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
+-- >>> (reify vx) s
+-- Cons (Reified 0) (Cons (Cons (Reified 1) (Cons (Reified 0) Nil)) (Cons (Value "corn") (Cons (Reified 2) (Cons (Cons (Value "ice") (Cons (Reified 2) Nil)) Nil))))
+reify :: Ord v => Expr a (Var v) -> Substitution a (Var v) -> Expr a (Var v)
 reify v =
     \s -> let v' = walkMany v s
               r = reifyS v' emptyS
-            in walkMany v' <$> r
+            in walkMany v' r
 
-reifyS :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Substitution a (Var String))
+reifyS :: Ord v => Expr a (Var v) -> Substitution a (Var v) -> Substitution a (Var v)
 reifyS v r = case walk v r of
-                Variable (_, "_") -> pure r
-                Variable x -> M.insert x <$> (var "_") <*> pure r
-                Cons a d -> (reifyS a r) >>= (reifyS d)
-                _ -> pure r
+                Variable x -> M.insert x (Reified $ M.size r) r
+                Cons a d -> (reifyS a r) & (reifyS d)
+                _ -> r
 
 -- |
 -- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
 callFresh :: Ord v => v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM v (Goal a (Var v))
 callFresh name f = f <$> var name 
-
--- |
--- >>> reifyName 2
--- "_2" 
-reifyName :: Int -> String
-reifyName n = "_" ++ show n
 
 -- |
 -- >>> let [w, x, y, z] = ['w'..'z']
