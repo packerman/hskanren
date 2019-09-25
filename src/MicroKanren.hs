@@ -32,7 +32,7 @@ type Var v = (Int, v)
 --          let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
 --          (reify vx) s
 -- :}
--- Cons (Variable (2,"_")) (Cons (Cons (Variable (1,"_")) (Cons (Variable (2,"_")) Nil)) (Cons (Value "corn") (Cons (Variable (4,"_")) (Cons (Cons (Value "ice") (Cons (Variable (4,"_")) Nil)) Nil))))
+-- Cons (Variable (0,"_")) (Cons (Cons (Variable (1,"_")) (Cons (Variable (0,"_")) Nil)) (Cons (Value "corn") (Cons (Variable (2,"_")) (Cons (Cons (Value "ice") (Cons (Variable (2,"_")) Nil)) Nil))))
 reify :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Expr a (Var String))
 reify v =
     \s -> let v' = walkMany v s
@@ -41,6 +41,7 @@ reify v =
 
 reifyS :: Expr a (Var String) -> Substitution a (Var String) -> EvalM String (Substitution a (Var String))
 reifyS v r = case walk v r of
+                Variable (_, "_") -> pure r
                 Variable x -> M.insert x <$> (var "_") <*> pure r
                 Cons a d -> (reifyS a r) >>= (reifyS d)
                 _ -> pure r
