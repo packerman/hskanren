@@ -24,6 +24,13 @@ emptyS = M.empty
 type Goal a v = Substitution a v -> [Substitution a v]
 
 -- |
+-- >>> let [x] = Variable <$> indexed ['x']
+-- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
+-- [Value "olive",Value "oil"]
+runGoal :: Int -> Goal a v -> [Substitution a v]
+runGoal n g = take n $ g emptyS
+
+-- |
 -- >>> let names = pure <$> "uvwxyz" :: [String]
 -- >>> let variables = Variable <$> indexed names
 -- >>> let [vu, vv, vw, vx, vy, vz] = variables
@@ -47,7 +54,7 @@ reifyS v r = case walk v r of
 -- |
 -- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
-callFresh :: Ord v => v -> (Expr a v -> Goal a v) -> EvalM (Goal a v)
+callFresh :: v -> (Expr a v -> Goal a v) -> EvalM (Goal a v)
 callFresh name f = f <$> var name 
 
 -- |
