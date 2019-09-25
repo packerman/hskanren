@@ -6,8 +6,10 @@ import qualified Data.Map as M
 import Data.Maybe
 import Data.Function
 
+type Var v = (Int, v)
+
 data Expr a v = Value a |
-                Variable v |
+                Variable (Var v) |
                 Reified Int |
                 Nil |
                 Cons (Expr a v) (Expr a v)
@@ -15,30 +17,28 @@ data Expr a v = Value a |
 
 type EvalM = State Counter
 
-type Substitution a v = M.Map v (Expr a v)
+type Substitution a v = M.Map (Var v) (Expr a v)
 
 emptyS = M.empty
 
 type Goal a v = Substitution a v -> [Substitution a v]
 
-type Var v = (Int, v)
-
 -- |
 -- >>> let names = pure <$> "uvwxyz" :: [String]
--- >>> let variables = Variable <$> zip [0..] names
+-- >>> let variables = Variable <$> indexed names
 -- >>> let [vu, vv, vw, vx, vy, vz] = variables
 -- >>> let [Variable u, Variable v, Variable w, Variable x, Variable y, Variable z] = variables
 -- >>> let [ice, corn] = Value <$> ["ice", "corn"]
 -- >>> let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
 -- >>> (reify vx) s
 -- Cons (Reified 0) (Cons (Cons (Reified 1) (Cons (Reified 0) Nil)) (Cons (Value "corn") (Cons (Reified 2) (Cons (Cons (Value "ice") (Cons (Reified 2) Nil)) Nil))))
-reify :: Ord v => Expr a (Var v) -> Substitution a (Var v) -> Expr a (Var v)
+reify :: Ord v => Expr a v -> Substitution a v -> Expr a v
 reify v =
     \s -> let v' = walkMany v s
               r = reifyS v' emptyS
             in walkMany v' r
 
-reifyS :: Ord v => Expr a (Var v) -> Substitution a (Var v) -> Substitution a (Var v)
+reifyS :: Ord v => Expr a v -> Substitution a v -> Substitution a v
 reifyS v r = case walk v r of
                 Variable x -> M.insert x (Reified $ M.size r) r
                 Cons a d -> (reifyS a r) & (reifyS d)
@@ -47,13 +47,13 @@ reifyS v r = case walk v r of
 -- |
 -- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
 -- [fromList [((0,"kiwi"),Value "plum")]]
-callFresh :: Ord v => v -> (Expr a (Var v) -> Goal a (Var v)) -> EvalM (Goal a (Var v))
+callFresh :: Ord v => v -> (Expr a v -> Goal a v) -> EvalM (Goal a v)
 callFresh name f = f <$> var name 
 
 -- |
--- >>> let [w, x, y, z] = ['w'..'z']
+-- >>> let [w, x, y, z] = indexed ['w'..'z']
 -- >>> walkMany (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
--- Cons (Value 'b') (Cons (Value 'e') (Cons (Variable 'y') Nil))
+-- Cons (Value 'b') (Cons (Value 'e') (Cons (Variable (2,'y')) Nil))
 walkMany :: Ord v => Expr a v -> Substitution a v -> Expr a v
 walkMany v s = case walk v s of
                 Cons a d -> Cons (walkMany a s) (walkMany d s)
@@ -65,11 +65,11 @@ walkMany v s = case walk v s of
 -- []
 -- >>> (Value False === Value False) emptyS
 -- [fromList []]
--- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> let [x, y] = Variable <$> indexed ['x', 'y']
 -- >>> (x === y) emptyS
--- [fromList [('x',Variable 'y')]]
+-- [fromList [((0,'x'),Variable (1,'y'))]]
 -- >>> (y === x) emptyS
--- [fromList [('y',Variable 'x')]]
+-- [fromList [((1,'y'),Variable (0,'x'))]]
 (===) :: (Eq a, Ord v) => Expr a v -> Expr a v -> Goal a v
 u === v =
     \s -> maybeToList $ unify u v s
@@ -87,9 +87,9 @@ failure :: Goal a v
 failure = \s -> []
 
 -- |
--- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> let [x, y] = Variable <$> indexed ['x', 'y']
 -- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptyS
--- [fromList [('x',Value "olive")],fromList [('x',Value "oil")]]
+-- [fromList [((0,'x'),Value "olive")],fromList [((0,'x'),Value "oil")]]
 disj2 :: Goal a v -> Goal a v -> Goal a v
 disj2 g1 g2 =
     \s -> interleave (g1 s) (g2 s)
@@ -101,10 +101,11 @@ disj2 g1 g2 =
 -- |
 -- >>> nevero emptyS
 -- []
--- >>> head $ (disj2 (Value "olive" === Variable 'x') nevero) emptyS
--- fromList [('x',Value "olive")]
--- >>> head $ (disj2 nevero (Value "olive" === Variable 'x')) emptyS
--- fromList [('x',Value "olive")]
+-- >>> let [x] = indexed ['x']
+-- >>> head $ (disj2 (Value "olive" === Variable x) nevero) emptyS
+-- fromList [((0,'x'),Value "olive")]
+-- >>> head $ (disj2 nevero (Value "olive" === Variable x)) emptyS
+-- fromList [((0,'x'),Value "olive")]
 nevero :: Goal a v
 nevero = \s -> []
 
@@ -121,14 +122,14 @@ conj2 :: Goal a v -> Goal a v -> Goal a v
 conj2 g1 g2 = concatMap g2 . g1
 
 -- |
--- >>> let [x, y] = Variable <$> ['x', 'y']
+-- >>> let [x, y] = Variable <$> indexed ['x', 'y']
 -- >>> let [a, e] = Value <$> ['a', 'e']
 -- >>> unify x a emptyS
--- Just (fromList [('x',Value 'a')])
+-- Just (fromList [((0,'x'),Value 'a')])
 -- >>> unify a y emptyS
--- Just (fromList [('y',Value 'a')])
+-- Just (fromList [((1,'y'),Value 'a')])
 -- >>> unify (Cons x a) (Cons e y) emptyS
--- Just (fromList [('x',Value 'e'),('y',Value 'a')])
+-- Just (fromList [((0,'x'),Value 'e'),((1,'y'),Value 'a')])
 -- >>> unify (Cons a x) (Cons e y) emptyS
 -- Nothing
 unify :: (Eq a, Ord v) => Expr a v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
@@ -143,21 +144,21 @@ unify u v s =
                     _ -> Nothing
 
 -- |
--- >>> let [v, w, x, y, z] = ['v'..'z']
+-- >>> let [v, w, x, y, z] = indexed ['v'..'z']
 -- >>> walk (Variable z) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
 -- Value 'a'
 -- >>> walk (Variable y) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
 -- Value 'a'
 -- >>> walk (Variable x) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
--- Variable 'w'
+-- Variable (1,'w')
 -- >>> walk (Variable x) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 'y'
+-- Variable (3,'y')
 -- >>> walk (Variable v) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 'y'
+-- Variable (3,'y')
 -- >>> walk (Variable w) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 'y'
+-- Variable (3,'y')
 -- >>> walk (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
--- Cons (Variable 'x') (Cons (Value 'e') (Cons (Variable 'z') Nil))
+-- Cons (Variable (2,'x')) (Cons (Value 'e') (Cons (Variable (4,'z')) Nil))
 walk :: Ord v => Expr a v -> Substitution a v -> Expr a v
 walk v@(Variable x) s = case M.lookup x s of
                             Just e -> walk e s
@@ -165,7 +166,7 @@ walk v@(Variable x) s = case M.lookup x s of
 walk e _ = e
 
 -- |
--- >>> let [x, y, z] = ['x'..'z']
+-- >>> let [x, y, z] = indexed ['x'..'z']
 -- >>> extS x (list [Variable x]) emptyS
 -- Nothing
 -- >>> extS x (list [Variable y]) (M.fromList [(y, Variable x)])
@@ -175,18 +176,18 @@ walk e _ = e
 --        in walk (Variable y) <$> (extS x (Value 'e') s)
 -- :}
 -- Just (Value 'e')
-extS :: Ord v => v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
+extS :: Ord v => Var v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
 extS x v s = if occurs x v s 
                 then Nothing
                 else Just $ M.insert x v s
 
 -- |
--- >>> let [x, y] = ['x', 'y']
+-- >>> let [x, y] = indexed ['x', 'y']
 -- >>> occurs x (Variable x) emptyS
 -- True 
 -- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
 -- True
-occurs :: Ord v => v -> (Expr a v) -> Substitution a v -> Bool
+occurs :: Ord v => Var v -> (Expr a v) -> Substitution a v -> Bool
 occurs x v s = case walk v s of
                 Variable y -> y == x
                 Cons a d -> occurs x a s || occurs x d s
@@ -210,7 +211,7 @@ eval m = evalState m defaultCounter
 --      in evalState go defaultCounter
 -- :}
 -- (False,False,False)
-var :: v -> EvalM (Expr a (Int, v))
+var :: v -> EvalM (Expr a v)
 var name = Variable <$> (,name) <$> state getAndInc
 
 data Counter = Counter Int deriving (Show)
@@ -226,3 +227,6 @@ getAndInc (Counter n) = (n, Counter $ n + 1)
 
 defaultCounter :: Counter
 defaultCounter = Counter 0
+
+indexed :: [a] -> [(Int, a)]
+indexed = zip [0..]
