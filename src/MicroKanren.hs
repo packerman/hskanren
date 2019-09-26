@@ -39,6 +39,15 @@ ifte g1 g2 g3 = \s -> case g1 s of
                         s' -> concatMap g2 s'
 
 -- |
+-- >>> let [x, y] = testVars ['x', 'y']
+-- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptyS
+-- [fromList [((0,'x'),Value True),((1,'y'),Value False)]]
+once :: Goal a v -> Goal a v
+once g = \s -> case g s of
+                [] -> []
+                x:_ -> [x]
+
+-- |
 -- >>> let [x] = testVars ['x']
 -- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
 -- [Value "olive",Value "oil"]
@@ -106,7 +115,7 @@ success = pure
 -- >>> failure emptyS
 -- []
 failure :: Goal a v
-failure = \s -> []
+failure = const []
 
 -- |
 -- >>> let [x, y] = Variable <$> indexed ['x', 'y']
