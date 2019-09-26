@@ -24,7 +24,22 @@ emptyS = M.empty
 type Goal a v = Substitution a v -> [Substitution a v]
 
 -- |
--- >>> let [x] = Variable <$> indexed ['x']
+-- >>> let [x, y] = testVars ['x', 'y']
+-- >>> (ifte success (Value False === y) (Value True === y)) emptyS
+-- [fromList [((1,'y'),Value False)]]
+-- >>> (ifte failure (Value False === y) (Value True === y)) emptyS
+-- [fromList [((1,'y'),Value True)]]
+-- >>> (ifte (Value True === x) (Value False === y) (Value True === y)) emptyS
+-- [fromList [((0,'x'),Value True),((1,'y'),Value False)]]
+-- >>> (ifte (disj2 (Value True === x) (Value False === x)) (Value False === y) (Value True === y)) emptyS
+-- [fromList [((0,'x'),Value True),((1,'y'),Value False)],fromList [((0,'x'),Value False),((1,'y'),Value False)]]
+ifte :: Goal a v -> Goal a v -> Goal a v -> Goal a v
+ifte g1 g2 g3 = \s -> case g1 s of
+                        [] -> g3 s
+                        s' -> concatMap g2 s'
+
+-- |
+-- >>> let [x] = testVars ['x']
 -- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
 -- [Value "olive",Value "oil"]
 runGoal :: Int -> Goal a v -> [Substitution a v]
@@ -32,7 +47,7 @@ runGoal n g = take n $ g emptyS
 
 -- |
 -- >>> let names = pure <$> "uvwxyz" :: [String]
--- >>> let variables = Variable <$> indexed names
+-- >>> let variables = testVars names
 -- >>> let [vu, vv, vw, vx, vy, vz] = variables
 -- >>> let [Variable u, Variable v, Variable w, Variable x, Variable y, Variable z] = variables
 -- >>> let [ice, corn] = Value <$> ["ice", "corn"]
@@ -234,6 +249,9 @@ getAndInc (Counter n) = (n, Counter $ n + 1)
 
 defaultCounter :: Counter
 defaultCounter = Counter 0
+
+testVars :: [v] -> [Expr a v]
+testVars = (Variable <$>) . indexed
 
 indexed :: [a] -> [(Int, a)]
 indexed = zip [0..]
