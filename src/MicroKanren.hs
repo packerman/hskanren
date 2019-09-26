@@ -23,6 +23,12 @@ emptyS = M.empty
 
 type Goal a v = Substitution a v -> [Substitution a v]
 
+disj :: [Goal a v] -> Goal a v
+disj = foldr disj2 failure
+
+conj :: [Goal a v] -> Goal a v
+conj = foldr conj2 success
+
 -- |
 -- >>> let [x, y] = testVars ['x', 'y']
 -- >>> (ifte success (Value False === y) (Value True === y)) emptyS
@@ -264,3 +270,9 @@ testVars = (Variable <$>) . indexed
 
 indexed :: [a] -> [(Int, a)]
 indexed = zip [0..]
+
+type Limit = Maybe Int
+
+limit :: Limit -> [a] -> [a]
+limit (Just n) = take n
+limit Nothing = id
