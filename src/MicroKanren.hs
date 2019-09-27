@@ -5,6 +5,7 @@ import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Function
+import Safe
 
 type Var v = (Int, v)
 
@@ -49,16 +50,14 @@ ifte g1 g2 g3 = \s -> case g1 s of
 -- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptyS
 -- [fromList [((0,'x'),Value True),((1,'y'),Value False)]]
 once :: Goal a v -> Goal a v
-once g = \s -> case g s of
-                [] -> []
-                x:_ -> [x]
+once g = maybeToList . headMay . g
 
 -- |
 -- >>> let [x] = testVars ['x']
--- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
+-- >>> map (reify x) (runGoal (Just 5) (disj2 (Value "olive" === x) (Value "oil" === x)))
 -- [Value "olive",Value "oil"]
-runGoal :: Int -> Goal a v -> [Substitution a v]
-runGoal n g = take n $ g emptyS
+runGoal :: Limit -> Goal a v -> [Substitution a v]
+runGoal n g = limit n $ g emptyS
 
 -- |
 -- >>> let names = pure <$> "uvwxyz" :: [String]
