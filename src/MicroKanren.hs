@@ -20,25 +20,19 @@ type EvalM = State Counter
 
 type Substitution a v = M.Map (Var v) (Expr a v)
 
-emptyS = M.empty
+emptySubst = M.empty
 
 type Goal a v = Substitution a v -> [Substitution a v]
 
-disj :: [Goal a v] -> Goal a v
-disj = foldr disj2 failure
-
-conj :: [Goal a v] -> Goal a v
-conj = foldr conj2 success
-
 -- |
 -- >>> let [x, y] = testVars ['x', 'y']
--- >>> (ifte success (Value False === y) (Value True === y)) emptyS
+-- >>> (ifte success (Value False === y) (Value True === y)) emptySubst
 -- [fromList [((1,'y'),Value False)]]
--- >>> (ifte failure (Value False === y) (Value True === y)) emptyS
+-- >>> (ifte failure (Value False === y) (Value True === y)) emptySubst
 -- [fromList [((1,'y'),Value True)]]
--- >>> (ifte (Value True === x) (Value False === y) (Value True === y)) emptyS
+-- >>> (ifte (Value True === x) (Value False === y) (Value True === y)) emptySubst
 -- [fromList [((0,'x'),Value True),((1,'y'),Value False)]]
--- >>> (ifte (disj2 (Value True === x) (Value False === x)) (Value False === y) (Value True === y)) emptyS
+-- >>> (ifte (disj2 (Value True === x) (Value False === x)) (Value False === y) (Value True === y)) emptySubst
 -- [fromList [((0,'x'),Value True),((1,'y'),Value False)],fromList [((0,'x'),Value False),((1,'y'),Value False)]]
 ifte :: Goal a v -> Goal a v -> Goal a v -> Goal a v
 ifte g1 g2 g3 = \s -> case g1 s of
@@ -47,7 +41,7 @@ ifte g1 g2 g3 = \s -> case g1 s of
 
 -- |
 -- >>> let [x, y] = testVars ['x', 'y']
--- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptyS
+-- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptySubst
 -- [fromList [((0,'x'),Value True),((1,'y'),Value False)]]
 once :: Goal a v -> Goal a v
 once g = maybeToList . headMay . g
@@ -57,7 +51,7 @@ once g = maybeToList . headMay . g
 -- >>> map (reify x) (runGoal (Just 5) (disj2 (Value "olive" === x) (Value "oil" === x)))
 -- [Value "olive",Value "oil"]
 runGoal :: Limit -> Goal a v -> [Substitution a v]
-runGoal n g = limit n $ g emptyS
+runGoal n g = limit n $ g emptySubst
 
 -- |
 -- >>> let names = pure <$> "uvwxyz" :: [String]
@@ -71,7 +65,7 @@ runGoal n g = limit n $ g emptyS
 reify :: Ord v => Expr a v -> Substitution a v -> Expr a v
 reify v =
     \s -> let v' = walkMany v s
-              r = reifyS v' emptyS
+              r = reifyS v' emptySubst
             in walkMany v' r
 
 reifyS :: Ord v => Expr a v -> Substitution a v -> Substitution a v
@@ -81,7 +75,7 @@ reifyS v r = case walk v r of
                 _ -> r
 
 -- |
--- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptyS)
+-- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptySubst)
 -- [fromList [((0,"kiwi"),Value "plum")]]
 callFresh :: v -> (Expr a v -> Goal a v) -> EvalM (Goal a v)
 callFresh name f = f <$> var name 
@@ -97,34 +91,34 @@ walkMany v s = case walk v s of
 
 
 -- |
--- >>> (Value True === Value False) emptyS
+-- >>> (Value True === Value False) emptySubst
 -- []
--- >>> (Value False === Value False) emptyS
+-- >>> (Value False === Value False) emptySubst
 -- [fromList []]
--- >>> let [x, y] = Variable <$> indexed ['x', 'y']
--- >>> (x === y) emptyS
+-- >>> let [x, y] = testVars ['x', 'y']
+-- >>> (x === y) emptySubst
 -- [fromList [((0,'x'),Variable (1,'y'))]]
--- >>> (y === x) emptyS
+-- >>> (y === x) emptySubst
 -- [fromList [((1,'y'),Variable (0,'x'))]]
 (===) :: (Eq a, Ord v) => Expr a v -> Expr a v -> Goal a v
 u === v =
     \s -> maybeToList $ unify u v s
 
 -- |
--- >>> success emptyS
+-- >>> success emptySubst
 -- [fromList []]
 success :: Goal a v
 success = pure
 
 -- |
--- >>> failure emptyS
+-- >>> failure emptySubst
 -- []
 failure :: Goal a v
 failure = const []
 
 -- |
--- >>> let [x, y] = Variable <$> indexed ['x', 'y']
--- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptyS
+-- >>> let [x, y] = testVars ['x', 'y']
+-- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptySubst
 -- [fromList [((0,'x'),Value "olive")],fromList [((0,'x'),Value "oil")]]
 disj2 :: Goal a v -> Goal a v -> Goal a v
 disj2 g1 g2 =
@@ -135,20 +129,20 @@ disj2 g1 g2 =
         interleave _ y = y
 
 -- |
--- >>> nevero emptyS
+-- >>> nevero emptySubst
 -- []
 -- >>> let [x] = indexed ['x']
--- >>> head $ (disj2 (Value "olive" === Variable x) nevero) emptyS
+-- >>> head $ (disj2 (Value "olive" === Variable x) nevero) emptySubst
 -- fromList [((0,'x'),Value "olive")]
--- >>> head $ (disj2 nevero (Value "olive" === Variable x)) emptyS
+-- >>> head $ (disj2 nevero (Value "olive" === Variable x)) emptySubst
 -- fromList [((0,'x'),Value "olive")]
 nevero :: Goal a v
 nevero = \s -> []
 
 -- |
--- >>> head $ alwayso emptyS
+-- >>> head $ alwayso emptySubst
 -- fromList []
--- >>> take 3 $ alwayso emptyS
+-- >>> take 3 $ alwayso emptySubst
 -- [fromList [],fromList [],fromList []]
 alwayso :: Goal a v
 alwayso = disj2 success alwayso
@@ -158,15 +152,15 @@ conj2 :: Goal a v -> Goal a v -> Goal a v
 conj2 g1 g2 = concatMap g2 . g1
 
 -- |
--- >>> let [x, y] = Variable <$> indexed ['x', 'y']
+-- >>> let [x, y] = testVars ['x', 'y']
 -- >>> let [a, e] = Value <$> ['a', 'e']
--- >>> unify x a emptyS
+-- >>> unify x a emptySubst
 -- Just (fromList [((0,'x'),Value 'a')])
--- >>> unify a y emptyS
+-- >>> unify a y emptySubst
 -- Just (fromList [((1,'y'),Value 'a')])
--- >>> unify (Cons x a) (Cons e y) emptyS
+-- >>> unify (Cons x a) (Cons e y) emptySubst
 -- Just (fromList [((0,'x'),Value 'e'),((1,'y'),Value 'a')])
--- >>> unify (Cons a x) (Cons e y) emptyS
+-- >>> unify (Cons a x) (Cons e y) emptySubst
 -- Nothing
 unify :: (Eq a, Ord v) => Expr a v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
 unify u v s = 
@@ -174,8 +168,8 @@ unify u v s =
         v' = walk v s in
             if u' == v' then Just s
             else case (u', v') of
-                    (Variable x, _) -> extS x v' s
-                    (_, Variable y) -> extS y u' s
+                    (Variable x, _) -> extend x v' s
+                    (_, Variable y) -> extend y u' s
                     (Cons ua ud, Cons va vd) -> (unify ua va s) >>= (unify ud vd)
                     _ -> Nothing
 
@@ -203,23 +197,23 @@ walk e _ = e
 
 -- |
 -- >>> let [x, y, z] = indexed ['x'..'z']
--- >>> extS x (list [Variable x]) emptyS
+-- >>> extend x (list [Variable x]) emptySubst
 -- Nothing
--- >>> extS x (list [Variable y]) (M.fromList [(y, Variable x)])
+-- >>> extend x (list [Variable y]) (M.fromList [(y, Variable x)])
 -- Nothing
 -- >>> :{ 
 --    let s = M.fromList [(z, Variable x), (y, Variable z)]
---        in walk (Variable y) <$> (extS x (Value 'e') s)
+--        in walk (Variable y) <$> (extend x (Value 'e') s)
 -- :}
 -- Just (Value 'e')
-extS :: Ord v => Var v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
-extS x v s = if occurs x v s 
+extend :: Ord v => Var v -> Expr a v -> Substitution a v -> Maybe (Substitution a v)
+extend x v s = if occurs x v s 
                 then Nothing
                 else Just $ M.insert x v s
 
 -- |
 -- >>> let [x, y] = indexed ['x', 'y']
--- >>> occurs x (Variable x) emptyS
+-- >>> occurs x (Variable x) emptySubst
 -- True 
 -- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
 -- True
