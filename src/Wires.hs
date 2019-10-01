@@ -1,5 +1,7 @@
 module Wires where
 
+import Data.Functor
+
 import MicroKanren
 
 disj :: [Goal a v] -> Goal a v
@@ -13,9 +15,15 @@ conj = foldr conj2 success
 -- function returning Goal - applicative?
 
 -- |
+-- >>> let [pea, pod] = Value <$> ["pea", "pod"]
 -- >>> let q = 'q'
--- >> 
--- >>> runAll q failure
+-- >>> run q (\q -> failure)
 -- []
--- >>> runAll q 
-runAll = undefined
+-- >>> run q (\q -> pea === pod)
+-- []
+-- >>> run q (\q -> q === pea)
+-- [Value "pea"]
+run :: Ord v => v -> (Expr a v -> Goal a v) -> [Expr a v]
+run q f = eval $ do
+                    q' <- var q
+                    pure $ map (reify q') ((f q') emptySubst)
