@@ -26,4 +26,4 @@ conj = foldr conj2 success
 run :: Ord v => v -> (Expr a v -> Goal a v) -> [Expr a v]
 run q f = eval $ do
                     q' <- var q
-                    pure $ map (reify q') ((f q') emptySubst)
+                    pure $ map (reify q') $ (f q') emptySubst
