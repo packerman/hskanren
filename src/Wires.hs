@@ -23,6 +23,12 @@ conj = foldr conj2 success
 -- []
 -- >>> run q (\q -> q === pea)
 -- [Value "pea"]
+-- >>> run q (\q -> pea === q)
+-- [Value "pea"]
+-- >>> run q (\q -> success)
+-- [Reified 0]
+-- >>> run q (\q -> q === q)
+-- [Reified 0]
 run :: Ord v => v -> (Expr a v -> Goal a v) -> [Expr a v]
 run q f = eval $ do
                     q' <- var q
