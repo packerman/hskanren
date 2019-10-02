@@ -8,6 +8,8 @@ import MicroKanren
 
 type LogicM a v = RWS () [Goal a v] Counter
 
+type Relation a v = Expr a v -> Goal a v
+
 disj :: [Goal a v] -> Goal a v
 disj = foldr disj2 failure
 
@@ -61,7 +63,7 @@ run m = let (e, gs) = eval m
 -- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y, x] === q }
 -- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
 -- >>> runWith 'q' $ \q -> goal $ disj2 (olive === q) (oil === q)
--- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
+-- [Value "olive",Value "oil"]
 runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
 runWith q f = run $ satisfying q f
 
