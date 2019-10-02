@@ -33,6 +33,38 @@ run :: Ord v => LogicM a v (Expr a v) -> [Expr a v]
 run m = let (e, gs) = eval m
         in map (reify e) $ (conj gs) emptySubst
 
+-- |
+-- >>> let [pea, pod] = Value <$> ["pea", "pod"]
+-- >>> runWith 'q' $ \q -> goal $ q === pea
+-- [Value "pea"]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ pea === q }
+-- [Value "pea"]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ pea === x }
+-- [Reified 0]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [x] === q }
+-- [Cons (Reified 0) Nil]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ x === q }
+-- [Reified 0]
+-- >>> runWith 'q' $ \q -> goal $ list [pea, pod] === list[pea, q]
+-- [Value "pod"]
+-- >>> runWith 'q' $ \q -> goal $ list [pea, pod] === list[q, pod]
+-- [Value "pea"]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [q, x] === list [x, pod] }
+-- [Value "pod"]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [x, x] === q }
+-- [Cons (Reified 0) (Cons (Reified 0) Nil)]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [q, y] === list [list [x, y], x] }
+-- [Cons (Reified 0) (Cons (Reified 0) Nil)]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y] === q }
+-- [Cons (Reified 0) (Cons (Reified 1) Nil)]
+-- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y, x] === q }
+-- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
+runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
+runWith q f = run $ satisfying q f
+
+satisfying :: Ord v => v -> (Expr a v -> LogicM a v ()) -> LogicM a v (Expr a v)
+satisfying q f = var q >>= (\q' -> f q' >> pure q')
+
 eval :: LogicM a v b -> (b, [Goal a v])
 eval m = evalRWS m () defaultCounter
 
