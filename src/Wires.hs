@@ -35,6 +35,7 @@ run m = let (e, gs) = eval m
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
+-- >>> let [olive, oil] = Value <$> ["olive", "oil"]
 -- >>> runWith 'q' $ \q -> goal $ q === pea
 -- [Value "pea"]
 -- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ pea === q }
@@ -58,6 +59,8 @@ run m = let (e, gs) = eval m
 -- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y] === q }
 -- [Cons (Reified 0) (Cons (Reified 1) Nil)]
 -- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y, x] === q }
+-- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
+-- >>> runWith 'q' $ \q -> goal $ disj2 (olive === q) (oil === q)
 -- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
 runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
 runWith q f = run $ satisfying q f
