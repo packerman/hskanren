@@ -67,6 +67,9 @@ run m = let (e, gs) = eval m
 runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
 runWith q f = run $ satisfying q f
 
+fresh :: v -> (Expr a v -> b) -> LogicM a v b
+fresh name f = f <$> var name 
+
 satisfying :: Ord v => v -> (Expr a v -> LogicM a v ()) -> LogicM a v (Expr a v)
 satisfying q f = var q >>= (\q' -> f q' >> pure q')
 
@@ -93,12 +96,6 @@ goal g = goals [g]
 
 goals :: [Goal a v] -> LogicM a v ()
 goals = tell
-
--- |
--- >>> fst $ eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptySubst)
--- [fromList [((0,"kiwi"),Value "plum")]]
-callFresh :: v -> (Expr a v -> Goal a v) -> LogicM a v (Goal a v)
-callFresh name f = f <$> var name 
 
 data Counter = Counter Int deriving (Show)
 

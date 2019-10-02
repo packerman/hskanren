@@ -62,14 +62,14 @@ runGoal n g = limit n $ g emptySubst
 reify :: Ord v => Expr a v -> Substitution a v -> Expr a v
 reify v =
     \s -> let v' = walkMany v s
-              r = reifyS v' emptySubst
+              r = reifySubst v' emptySubst
             in walkMany v' r
 
-reifyS :: Ord v => Expr a v -> Substitution a v -> Substitution a v
-reifyS v r = case walk v r of
-                Variable x -> M.insert x (Reified $ M.size r) r
-                Cons a d -> (reifyS a r) & (reifyS d)
-                _ -> r
+reifySubst :: Ord v => Expr a v -> Substitution a v -> Substitution a v
+reifySubst v r = case walk v r of
+                        Variable x -> M.insert x (Reified $ M.size r) r
+                        Cons a d -> (reifySubst a r) & (reifySubst d)
+                        _ -> r
 
 -- |
 -- >>> let [w, x, y, z] = indexed ['w'..'z']
@@ -118,25 +118,6 @@ disj2 g1 g2 =
         interleave :: [a] -> [a] -> [a]
         interleave (x:xs) y = x : interleave y xs
         interleave _ y = y
-
--- |
--- >>> nevero emptySubst
--- []
--- >>> let [x] = indexed ['x']
--- >>> head $ (disj2 (Value "olive" === Variable x) nevero) emptySubst
--- fromList [((0,'x'),Value "olive")]
--- >>> head $ (disj2 nevero (Value "olive" === Variable x)) emptySubst
--- fromList [((0,'x'),Value "olive")]
-nevero :: Goal a v
-nevero = \s -> []
-
--- |
--- >>> head $ alwayso emptySubst
--- fromList []
--- >>> take 3 $ alwayso emptySubst
--- [fromList [],fromList [],fromList []]
-alwayso :: Goal a v
-alwayso = disj2 success alwayso
 
 -- |
 conj2 :: Goal a v -> Goal a v -> Goal a v
