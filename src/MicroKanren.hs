@@ -1,4 +1,3 @@
-{-# LANGUAGE TupleSections #-}
 module MicroKanren where
 
 import Control.Monad.State
@@ -15,8 +14,6 @@ data Expr a v = Value a |
                 Nil |
                 Cons (Expr a v) (Expr a v)
                 deriving (Eq, Show)
-
-type EvalM = State Counter
 
 type Substitution a v = M.Map (Var v) (Expr a v)
 
@@ -73,12 +70,6 @@ reifyS v r = case walk v r of
                 Variable x -> M.insert x (Reified $ M.size r) r
                 Cons a d -> (reifyS a r) & (reifyS d)
                 _ -> r
-
--- |
--- >>> eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptySubst)
--- [fromList [((0,"kiwi"),Value "plum")]]
-callFresh :: v -> (Expr a v -> Goal a v) -> EvalM (Goal a v)
-callFresh name f = f <$> var name 
 
 -- |
 -- >>> let [w, x, y, z] = indexed ['w'..'z']
@@ -228,35 +219,6 @@ occurs x v s = case walk v s of
 -- Cons (Value 1) (Cons (Value 2) (Cons (Value 3) (Cons (Value 4) Nil)))
 list :: [Expr a v] -> Expr a v
 list = foldr Cons Nil
-
-eval :: EvalM a -> a
-eval m = evalState m defaultCounter
-
--- |
--- >>> :{
---      let go = do x1 <- var "x"
---                  x2 <- var "x"
---                  y <- var "y"
---                  return (x1 == x2, x1 == y, y == x2)
---      in evalState go defaultCounter
--- :}
--- (False,False,False)
-var :: v -> EvalM (Expr a v)
-var name = Variable <$> (,name) <$> state getAndInc
-
-data Counter = Counter Int deriving (Show)
-
--- | Return the current state of counter and increments
--- 
--- >>> getAndInc defaultCounter
--- (0,Counter 1)
--- >>> getAndInc (Counter 5)
--- (5,Counter 6)
-getAndInc :: Counter -> (Int, Counter)
-getAndInc (Counter n) = (n, Counter $ n + 1)
-
-defaultCounter :: Counter
-defaultCounter = Counter 0
 
 testVars :: [v] -> [Expr a v]
 testVars = (Variable <$>) . indexed

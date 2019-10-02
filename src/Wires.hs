@@ -1,8 +1,12 @@
+{-# LANGUAGE TupleSections #-}
 module Wires where
 
+import Control.Monad.RWS
 import Data.Functor
 
 import MicroKanren
+
+type LogicM a v = RWS () [Goal a v] Counter
 
 disj :: [Goal a v] -> Goal a v
 disj = foldr disj2 failure
@@ -10,26 +14,65 @@ disj = foldr disj2 failure
 conj :: [Goal a v] -> Goal a v
 conj = foldr conj2 success
 
--- TODO - what instead of defrel?
--- TODO - some monad?
--- function returning Goal - applicative?
-
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
 -- >>> let q = 'q'
--- >>> run q (\q -> failure)
+-- >>> run (goal failure >> var q)
 -- []
--- >>> run q (\q -> pea === pod)
+-- >>> run (goal (pea === pod) >> var q)
 -- []
--- >>> run q (\q -> q === pea)
+-- >>> run $ do { q <- var q; goal $ q === pea; pure q }
 -- [Value "pea"]
--- >>> run q (\q -> pea === q)
+-- >>> run $ do { q <- var q; goal $ pea === q; pure q }
 -- [Value "pea"]
--- >>> run q (\q -> success)
+-- >>> run (goal success >> var q)
 -- [Reified 0]
--- >>> run q (\q -> q === q)
+-- >>> run $ do { q <- var q; goal $ q === q; pure q }
 -- [Reified 0]
-run :: Ord v => v -> (Expr a v -> Goal a v) -> [Expr a v]
-run q f = eval $ do
-                    q' <- var q
-                    pure $ map (reify q') $ (f q') emptySubst
+run :: Ord v => LogicM a v (Expr a v) -> [Expr a v]
+run m = let (e, gs) = eval m
+        in map (reify e) $ (conj gs) emptySubst
+
+eval :: LogicM a v b -> (b, [Goal a v])
+eval m = evalRWS m () defaultCounter
+
+-- |
+-- >>> :{
+--      let go = do x1 <- var "x"
+--                  x2 <- var "x"
+--                  y <- var "y"
+--                  return (x1 == x2, x1 == y, y == x2)
+--      in fst $ eval go
+-- :}
+-- (False,False,False)
+var :: v -> LogicM a v (Expr a v)
+var name = Variable <$> (,name) <$> state getAndInc
+
+vars :: [v] -> LogicM a v [Expr a v]
+vars = traverse var
+
+goal :: Goal a v -> LogicM a v ()
+goal g = goals [g]
+
+goals :: [Goal a v] -> LogicM a v ()
+goals = tell
+
+-- |
+-- >>> fst $ eval $ take 1 <$> (callFresh "kiwi" (\fruit -> Value "plum" === fruit) <*> pure emptySubst)
+-- [fromList [((0,"kiwi"),Value "plum")]]
+callFresh :: v -> (Expr a v -> Goal a v) -> LogicM a v (Goal a v)
+callFresh name f = f <$> var name 
+
+data Counter = Counter Int deriving (Show)
+
+-- | Return the current state of counter and increments
+-- 
+-- >>> getAndInc defaultCounter
+-- (0,Counter 1)
+-- >>> getAndInc (Counter 5)
+-- (5,Counter 6)
+getAndInc :: Counter -> (Int, Counter)
+getAndInc (Counter n) = (n, Counter $ n + 1)
+
+defaultCounter :: Counter
+defaultCounter = Counter 0
