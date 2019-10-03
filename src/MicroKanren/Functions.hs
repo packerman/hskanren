@@ -1,6 +1,5 @@
 module MicroKanren.Functions where
 
-import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Function

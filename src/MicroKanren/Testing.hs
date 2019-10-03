@@ -5,7 +5,7 @@ import MicroKanren.Types
 data Symbol = Pea | Pod |
                 Olive | Oil |
                 Plum |
-                Tea | Pot
+                Tea | Cup
                 deriving (Eq, Show, Ord, Enum)
 
 data Variable = U | V | W |
