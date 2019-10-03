@@ -11,6 +11,7 @@ import Data.Functor
 import MicroKanren.Types
 import MicroKanren.Functions
 import MicroKanren.Internal
+import MicroKanren.Testing
 
 type LogicM a v = RWS () [Goal a v] Counter
 
@@ -74,7 +75,18 @@ runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
 runWith q f = run $ satisfying q f
 
 fresh :: v -> (Expr a v -> b) -> LogicM a v b
-fresh name f = f <$> var name 
+fresh name f = f <$> var name
+
+-- |
+-- >>> :{
+--  runWith X $ \x -> do
+--                      goal $ conde [
+--                              [Value Olive === x, failure],
+--                              [Value Oil === x]]
+-- :}
+-- [Value Oil]
+conde :: [[Goal a v]] -> Goal a v
+conde = disj . map conj
 
 satisfying :: Ord v => v -> (Expr a v -> LogicM a v ()) -> LogicM a v (Expr a v)
 satisfying q f = var q >>= (\q' -> f q' >> pure q')
