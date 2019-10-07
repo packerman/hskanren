@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+
 module MicroKanren(
     module MicroKanren.Types,
     module MicroKanren
@@ -13,7 +14,7 @@ import MicroKanren.Functions
 import MicroKanren.Internal
 import MicroKanren.Testing
 
-type LogicM a v = RWS () [Goal a v] Counter
+type LogicM a v = RWS () (Conj a v) Counter
 
 type Relation a v = Expr a v -> Goal a v
 
@@ -22,6 +23,22 @@ disj = foldr disj2 failure
 
 conj :: [Goal a v] -> Goal a v
 conj = foldr conj2 success
+
+newtype Disj a v = Disj { getDisj :: Goal a v }
+
+instance Semigroup (Disj a v) where
+    (Disj g1) <> (Disj g2) = Disj $ g1 `disj2` g2
+
+instance Monoid (Disj a v) where
+    mempty = Disj failure
+
+newtype Conj a v = Conj { getConj :: Goal a v }
+
+instance Semigroup (Conj a v) where
+    (Conj g1) <> (Conj g2) = Conj $ g1 `conj2` g2
+
+instance Monoid (Conj a v) where
+    mempty = Conj success
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
@@ -39,8 +56,8 @@ conj = foldr conj2 success
 -- >>> run $ do { q <- var q; goal $ q === q; pure q }
 -- [Reified 0]
 run :: Ord v => LogicM a v (Expr a v) -> [Expr a v]
-run m = let (e, gs) = eval m
-        in map (reify e) $ (conj gs) emptySubst
+run m = let (e, Conj g) = eval m
+        in map (reify e) $ g emptySubst
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
@@ -91,7 +108,7 @@ conde = disj . map conj
 satisfying :: Ord v => v -> (Expr a v -> LogicM a v ()) -> LogicM a v (Expr a v)
 satisfying q f = var q >>= (\q' -> f q' >> pure q')
 
-eval :: LogicM a v b -> (b, [Goal a v])
+eval :: LogicM a v b -> (b, Conj a v)
 eval m = evalRWS m () defaultCounter
 
 -- |
@@ -113,4 +130,4 @@ goal :: Goal a v -> LogicM a v ()
 goal g = goals [g]
 
 goals :: [Goal a v] -> LogicM a v ()
-goals = tell
+goals = tell . mconcat . map Conj
