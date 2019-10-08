@@ -4,12 +4,13 @@ import MicroKanren.Types
 
 data Symbol = Pea | Pod |
                 Olive | Oil |
-                Plum |
+                Plum | Pear |
                 Tea | Cup |
                 Fail
                 deriving (Eq, Show, Ord, Enum)
 
-data Variable = U | V | W |
+data Variable = Q | R | S | T |
+                U | V | W |
                 X | Y | Z
                 deriving (Eq, Show, Ord, Enum)
 

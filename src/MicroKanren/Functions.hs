@@ -190,3 +190,5 @@ occurs x v s = case walk v s of
 list :: [Expr a v] -> Expr a v
 list = foldr Cons Nil
 
+values :: [a] -> Expr a v
+values = list . map Value
