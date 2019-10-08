@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-
 module MicroKanren(
     module MicroKanren.Types,
     module MicroKanren
@@ -14,120 +12,116 @@ import MicroKanren.Functions
 import MicroKanren.Internal
 import MicroKanren.Testing
 
-type LogicM a v = RWS () (Conj a v) Counter
+type LogicM a = RWS () (Conj a) Counter
 
-type Relation a v = Expr a v -> Goal a v
+type Relation a = Expr a -> Goal a
 
-disj :: [Goal a v] -> Goal a v
+disj :: [Goal a] -> Goal a
 disj = foldr disj2 failure
 
-conj :: [Goal a v] -> Goal a v
+conj :: [Goal a] -> Goal a
 conj = foldr conj2 success
 
-newtype Disj a v = Disj { getDisj :: Goal a v }
+newtype Disj a = Disj { getDisj :: Goal a }
 
-instance Semigroup (Disj a v) where
+instance Semigroup (Disj a) where
     (Disj g1) <> (Disj g2) = Disj $ g1 `disj2` g2
 
-instance Monoid (Disj a v) where
+instance Monoid (Disj a) where
     mempty = Disj failure
 
-newtype Conj a v = Conj { getConj :: Goal a v }
+newtype Conj a = Conj { getConj :: Goal a }
 
-instance Semigroup (Conj a v) where
+instance Semigroup (Conj a) where
     (Conj g1) <> (Conj g2) = Conj $ g1 `conj2` g2
 
-instance Monoid (Conj a v) where
+instance Monoid (Conj a) where
     mempty = Conj success
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
--- >>> let q = 'q'
--- >>> run (goal failure >> var q)
+-- >>> run (goal failure >> newVar)
 -- []
--- >>> run (goal (pea === pod) >> var q)
+-- >>> run (goal (pea === pod) >> newVar)
 -- []
--- >>> run $ do { q <- var q; goal $ q === pea; pure q }
+-- >>> run $ do { q <- newVar; goal $ q === pea; pure q }
 -- [Value "pea"]
--- >>> run $ do { q <- var q; goal $ pea === q; pure q }
+-- >>> run $ do { q <- newVar; goal $ pea === q; pure q }
 -- [Value "pea"]
--- >>> run (goal success >> var q)
+-- >>> run (goal success >> newVar)
 -- [Reified 0]
--- >>> run $ do { q <- var q; goal $ q === q; pure q }
+-- >>> run $ do { q <- newVar; goal $ q === q; pure q }
 -- [Reified 0]
-run :: Ord v => LogicM a v (Expr a v) -> [Expr a v]
+run :: LogicM a (Expr a) -> [Expr a]
 run m = let (e, Conj g) = eval m
         in map (reify e) $ g emptySubst
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
 -- >>> let [olive, oil] = Value <$> ["olive", "oil"]
--- >>> runWith 'q' $ \q -> goal $ q === pea
+-- >>> runWith $ \q -> goal $ q === pea
 -- [Value "pea"]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ pea === q }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ pea === q }
 -- [Value "pea"]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ pea === x }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ pea === x }
 -- [Reified 0]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [x] === q }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ list [x] === q }
 -- [Cons (Reified 0) Nil]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ x === q }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ x === q }
 -- [Reified 0]
--- >>> runWith 'q' $ \q -> goal $ list [pea, pod] === list[pea, q]
+-- >>> runWith $ \q -> goal $ list [pea, pod] === list[pea, q]
 -- [Value "pod"]
--- >>> runWith 'q' $ \q -> goal $ list [pea, pod] === list[q, pod]
+-- >>> runWith $ \q -> goal $ list [pea, pod] === list[q, pod]
 -- [Value "pea"]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [q, x] === list [x, pod] }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ list [q, x] === list [x, pod] }
 -- [Value "pod"]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; goal $ list [x, x] === q }
+-- >>> runWith $ \q -> do { x <- newVar; goal $ list [x, x] === q }
 -- [Cons (Reified 0) (Cons (Reified 0) Nil)]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [q, y] === list [list [x, y], x] }
+-- >>> runWith $ \q -> do { x <- newVar; y <- newVar; goal $ list [q, y] === list [list [x, y], x] }
 -- [Cons (Reified 0) (Cons (Reified 0) Nil)]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y] === q }
+-- >>> runWith $ \q -> do { x <- newVar; y <- newVar; goal $ list [x, y] === q }
 -- [Cons (Reified 0) (Cons (Reified 1) Nil)]
--- >>> runWith 'q' $ \q -> do { x <- var 'x'; y <- var 'y'; goal $ list [x, y, x] === q }
+-- >>> runWith $ \q -> do { x <- newVar; y <- newVar; goal $ list [x, y, x] === q }
 -- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
--- >>> runWith 'q' $ \q -> goal $ disj2 (olive === q) (oil === q)
+-- >>> runWith $ \q -> goal $ disj2 (olive === q) (oil === q)
 -- [Value "olive",Value "oil"]
-runWith :: Ord v => v -> (Expr a v -> LogicM a v ()) -> [Expr a v]
-runWith q f = run $ satisfying q f
+runWith :: (Expr a -> LogicM a ()) -> [Expr a]
+runWith f = run $ satisfying f
 
-fresh :: v -> (Expr a v -> b) -> LogicM a v b
-fresh name f = f <$> var name
+fresh :: (Expr a -> b) -> LogicM a b
+fresh f = f <$> newVar
 
 -- |
 -- >>> :{
---  runWith X $ \x -> do
+--  runWith $ \x -> do
 --                      goal $ conde [
 --                              [Value Olive === x, failure],
 --                              [Value Oil === x]]
 -- :}
 -- [Value Oil]
-conde :: [[Goal a v]] -> Goal a v
+conde :: [[Goal a]] -> Goal a
 conde = disj . map conj
 
-satisfying :: Ord v => v -> (Expr a v -> LogicM a v ()) -> LogicM a v (Expr a v)
-satisfying q f = var q >>= (\q' -> f q' >> pure q')
+satisfying :: (Expr a -> LogicM a ()) -> LogicM a (Expr a)
+satisfying f = newVar >>= (\q -> f q >> pure q)
 
-eval :: LogicM a v b -> (b, Conj a v)
+eval :: LogicM a b -> (b, Conj a)
 eval m = evalRWS m () defaultCounter
 
 -- |
 -- >>> :{
---      let go = do x1 <- var "x"
---                  x2 <- var "x"
---                  y <- var "y"
+--      let go = do x1 <- newVar
+--                  x2 <- newVar
+--                  y <- newVar
 --                  return (x1 == x2, x1 == y, y == x2)
 --      in fst $ eval go
 -- :}
 -- (False,False,False)
-var :: v -> LogicM a v (Expr a v)
-var name = Variable <$> (,name) <$> state getAndInc
+newVar :: LogicM a (Expr a)
+newVar = Variable <$> state getAndInc
 
-vars :: [v] -> LogicM a v [Expr a v]
-vars = traverse var
-
-goal :: Goal a v -> LogicM a v ()
+goal :: Goal a -> LogicM a ()
 goal g = goals [g]
 
-goals :: [Goal a v] -> LogicM a v ()
+goals :: [Goal a] -> LogicM a ()
 goals = tell . mconcat . map Conj

@@ -7,31 +7,31 @@ import MicroKanren.Testing
 -- |
 -- >>> :{
 --        run $ do
---                  x <- var X
---                  y <- var Y
+--                  x <- newVar
+--                  y <- newVar
 --                  goal $ conde [
 --                          [teacupo x, teacupo x],
 --                          [Value Fail === x, teacupo y]]
 --                  pure $ list [x, y]
 -- :}
 -- [Cons (Value Tea) (Cons (Reified 0) Nil),Cons (Value Fail) (Cons (Value Tea) Nil),Cons (Value Cup) (Cons (Reified 0) Nil),Cons (Value Fail) (Cons (Value Cup) Nil)]
-teacupo :: Ord v => Relation Symbol v
+teacupo :: Relation Symbol
 teacupo t = disj2 (Value Tea === t) (Value Cup === t)
 
 -- |
--- >> runWith Q $ \q -> caro (values "acorn") q
--- ['a']
--- >> runWith Q $ \q -> caro (values "acorn") 'a'
+-- >>> runWith $ \q -> goal =<< caro (values "acorn") q
+-- [Value 'a']
+-- >>> runWith $ \q -> goal =<< caro (values "acorn") (Value 'a')
 -- [Reified 0]
--- >> :{
---      runWith R $ \r -> do
---                          x <- var X
---                          y <- var Y
---                          goal $ caro (list [r, y]) x
---                          goal $ (Value Pear) x
+-- >>> :{
+--      runWith $ \r -> do
+--                          x <- newVar
+--                          y <- newVar
+--                          goal =<< caro (list [r, y]) x
+--                          goal $ (Value Pear) === x
 -- :}
 -- [Value Pear]
--- caro :: Expr a v -> Relation a v
--- caro p a = do
---             d <- var 'd'
---             goal $ (Cons a d) === p
+caro :: Eq a => Expr a -> Expr a -> LogicM a (Goal a)
+caro p a = do
+            d <- newVar
+            pure $ (Cons a d) === p

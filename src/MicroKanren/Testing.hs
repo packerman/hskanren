@@ -14,8 +14,9 @@ data Variable = Q | R | S | T |
                 X | Y | Z
                 deriving (Eq, Show, Ord, Enum)
 
-testVars :: [v] -> [Expr a v]
-testVars = (Variable <$>) . indexed
+testVars :: Int -> [Expr a]
+testVars n = Variable <$> [1..n]
 
+-- TODO remove
 indexed :: [a] -> [(Int, a)]
 indexed = zip [0..]

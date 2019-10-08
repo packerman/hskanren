@@ -2,15 +2,15 @@ module MicroKanren.Types where
 
 import qualified Data.Map as M
 
-type Var v = (Int, v)
+type Var = Int
 
-data Expr a v = Value a |
-                Variable (Var v) |
+data Expr a = Value a |
+                Variable Var |
                 Reified Int |
                 Nil |
-                Cons (Expr a v) (Expr a v)
+                Cons (Expr a) (Expr a)
                 deriving (Eq, Show)
 
-type Substitution a v = M.Map (Var v) (Expr a v)
+type Substitution a = M.Map Var (Expr a)
 
-type Goal a v = Substitution a v -> [Substitution a v]
+type Goal a = Substitution a -> [Substitution a]
