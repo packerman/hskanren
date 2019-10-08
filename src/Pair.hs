@@ -15,7 +15,7 @@ import MicroKanren.Testing
 --                  pure $ list [x, y]
 -- :}
 -- [Cons (Value Tea) (Cons (Reified 0) Nil),Cons (Value Fail) (Cons (Value Tea) Nil),Cons (Value Cup) (Cons (Reified 0) Nil),Cons (Value Fail) (Cons (Value Cup) Nil)]
-teacupo :: Relation Symbol
+teacupo :: Expr Symbol -> Goal Symbol
 teacupo t = disj2 (Value Tea === t) (Value Cup === t)
 
 -- |
@@ -31,7 +31,7 @@ teacupo t = disj2 (Value Tea === t) (Value Cup === t)
 --                          goal $ (Value Pear) === x
 -- :}
 -- [Value Pear]
-caro :: Eq a => Expr a -> Expr a -> LogicM a (Goal a)
+caro :: Eq a => Expr a -> Relation a
 caro p a = do
             d <- newVar
             pure $ (Cons a d) === p
