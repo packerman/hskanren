@@ -14,7 +14,9 @@ import MicroKanren.Testing
 
 type LogicM a = RWS () [Goal a] Counter
 
-type Relation a = Expr a -> LogicM a (Goal a)
+type Relation a = Expr a -> (Goal a)
+
+type RelationM a = Expr a -> LogicM a (Goal a)
 
 disj :: [Goal a] -> Goal a
 disj = foldr disj2 failure
