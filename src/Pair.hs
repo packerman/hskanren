@@ -55,5 +55,22 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --
 -- >>> runWith $ \x -> goal =<< cdro (values "corn") (list [x, Value 'r', Value 'n'])
 -- [Value 'o']
+--
+-- >>> :{
+--      runWith $ \l -> do
+--                          x <- fresh
+--                          goal =<< cdro l (values "corn")
+--                          goal =<< caro l x
+--                          goal $ (Value 'a') === x
+-- :}
+-- [Cons (Value 'a') (Cons (Value 'c') (Cons (Value 'o') (Cons (Value 'r') (Cons (Value 'n') Nil))))]
 cdro :: Eq a => Expr a -> RelationM a
 cdro p d = fresh <&> (\a -> Cons a d === p)
+
+-- |
+-- >>> runWith $ (\l -> goal =<< conso (values "abc") (values "de") l)
+-- [Cons (Cons (Value 'a') (Cons (Value 'b') (Cons (Value 'c') Nil))) (Cons (Value 'd') (Cons (Value 'e') Nil))]
+-- >>> runWith $ (\x -> goal =<< conso x (values "abc") (values "dabc"))
+-- [Value 'd']
+conso :: Eq a => Expr a -> Expr a -> RelationM a
+conso a d p = (goal =<< caro p a) >> (cdro p d) 
