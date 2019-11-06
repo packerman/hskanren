@@ -72,5 +72,24 @@ cdro p d = fresh <&> (\a -> Cons a d === p)
 -- [Cons (Cons (Value 'a') (Cons (Value 'b') (Cons (Value 'c') Nil))) (Cons (Value 'd') (Cons (Value 'e') Nil))]
 -- >>> runWith $ (\x -> goal =<< conso x (values "abc") (values "dabc"))
 -- [Value 'd']
+-- >>> :{
+--      runWith $ \r -> do
+--                          x <- fresh
+--                          y <- fresh
+--                          z <- fresh
+--                          goal $ list [Value 'e', Value 'a', Value 'd', x] === r
+--                          goal =<< conso y (list [Value 'a', z, Value 'c']) r
+-- :}
+-- [Cons (Value 'e') (Cons (Value 'a') (Cons (Value 'd') (Cons (Value 'c') Nil)))]
+--
+-- >>> runWith $ (\x -> goal =<< conso x (list [Value 'a', x, Value 'c']) (list [Value 'd', Value 'a', x, Value 'c']))
+-- [Value 'd']
+-- >>> :{
+--      runWith $ \l -> do
+--                          x <- fresh
+--                          goal $ list [Value 'd', Value 'a', x, Value 'c'] === l
+--                          goal =<< conso x (list [Value 'a', x, Value 'c']) l
+-- :}
+-- [Cons (Value 'd') (Cons (Value 'a') (Cons (Value 'd') (Cons (Value 'c') Nil)))]
 conso :: Eq a => Expr a -> Expr a -> RelationM a
 conso a d p = (goal =<< caro p a) >> (cdro p d) 
