@@ -7,16 +7,16 @@ import MicroKanren.Functions
 import MicroKanren.Testing
 
 -- |
--- >>> runWith $ \q -> goal =<< caro (values "acorn") q
+-- >>> runWith $ \q -> caro (values "acorn") q
 -- [Value 'a']
--- >>> runWith $ \q -> goal =<< caro (values "acorn") (Value 'a')
+-- >>> runWith $ \q -> caro (values "acorn") (Value 'a')
 -- [Reified 0]
 -- >>> :{
 --      runWith $ \r -> do
 --                          x <- fresh
 --                          y <- fresh
---                          goal =<< caro (list [r, y]) x
---                          goal $ (Value Pear) === x
+--                          conjM [caro (list [r, y]) x, 
+--                                              pure $ (Value Pear) === x]
 -- :}
 -- [Value Pear]
 --
@@ -24,9 +24,9 @@ import MicroKanren.Testing
 --      runWith $ \r -> do
 --                          x <- fresh
 --                          y <- fresh
---                          goal =<< caro (values [Grape, Raisin, Pear]) x
---                          goal =<< caro (list [list [Value A], list [Value B], list [Value C]]) y
---                          goal $ (Cons x y) === r
+--                          conjM [caro (values [Grape, Raisin, Pear]) x,
+--                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
+--                                  pure $ (Cons x y) === r]
 -- :}
 -- [Cons (Value Grape) (Cons (Value A) Nil)]
 caro :: Eq a => Expr a -> RelationM a
@@ -34,12 +34,12 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 
 -- |
 -- >>> :{
---      runWith $ \r -> do
---                          v <- fresh
---                          goal =<< cdro (values "acorn") v
---                          w <- fresh
---                          goal =<< cdro v w
---                          goal =<< caro w r
+--      runWith $ \r -> 
+--                 fresh >>= (\v -> 
+--                             conjM [cdro (values "acorn") v,
+--                                    fresh >>= (\w -> 
+--                                               conjM [cdro v w,
+--                                               caro w r])])
 -- :}
 -- [Value 'o']
 --
@@ -47,49 +47,47 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --      runWith $ \r -> do
 --                          x <- fresh
 --                          y <- fresh
---                          goal =<< cdro (values [Grape, Raisin, Pear]) x
---                          goal =<< caro (list [list [Value A], list [Value B], list [Value C]]) y
---                          goal $ (Cons x y) === r
+--                          conjM [cdro (values [Grape, Raisin, Pear]) x,
+--                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
+--                                  pure $ (Cons x y) === r]
 -- :}
 -- [Cons (Cons (Value Raisin) (Cons (Value Pear) Nil)) (Cons (Value A) Nil)]
 --
--- >>> runWith $ \x -> goal =<< cdro (values "corn") (list [x, Value 'r', Value 'n'])
+-- >>> runWith $ \x -> cdro (values "corn") (list [x, Value 'r', Value 'n'])
 -- [Value 'o']
 --
 -- >>> :{
---      runWith $ \l -> do
---                          x <- fresh
---                          goal =<< cdro l (values "corn")
---                          goal =<< caro l x
---                          goal $ (Value 'a') === x
+--      runWith $ \l -> fresh>>= (\x -> 
+--                                  conjM [cdro l (values "corn"),
+--                                          caro l x,
+--                                          pure $ (Value 'a') === x])
 -- :}
 -- [Cons (Value 'a') (Cons (Value 'c') (Cons (Value 'o') (Cons (Value 'r') (Cons (Value 'n') Nil))))]
 cdro :: Eq a => Expr a -> RelationM a
 cdro p d = fresh <&> (\a -> Cons a d === p)
 
 -- |
--- >>> runWith $ (\l -> goal =<< conso (values "abc") (values "de") l)
+-- >>> runWith $ (\l -> conso (values "abc") (values "de") l)
 -- [Cons (Cons (Value 'a') (Cons (Value 'b') (Cons (Value 'c') Nil))) (Cons (Value 'd') (Cons (Value 'e') Nil))]
--- >>> runWith $ (\x -> goal =<< conso x (values "abc") (values "dabc"))
+-- >>> runWith $ (\x -> conso x (values "abc") (values "dabc"))
 -- [Value 'd']
 -- >>> :{
 --      runWith $ \r -> do
 --                          x <- fresh
 --                          y <- fresh
 --                          z <- fresh
---                          goal $ list [Value 'e', Value 'a', Value 'd', x] === r
---                          goal =<< conso y (list [Value 'a', z, Value 'c']) r
+--                          conjM [pure $ list [Value 'e', Value 'a', Value 'd', x] === r,
+--                                 conso y (list [Value 'a', z, Value 'c']) r]
 -- :}
 -- [Cons (Value 'e') (Cons (Value 'a') (Cons (Value 'd') (Cons (Value 'c') Nil)))]
 --
--- >>> runWith $ (\x -> goal =<< conso x (list [Value 'a', x, Value 'c']) (list [Value 'd', Value 'a', x, Value 'c']))
+-- >>> runWith $ (\x -> conso x (list [Value 'a', x, Value 'c']) (list [Value 'd', Value 'a', x, Value 'c']))
 -- [Value 'd']
 -- >>> :{
---      runWith $ \l -> do
---                          x <- fresh
---                          goal $ list [Value 'd', Value 'a', x, Value 'c'] === l
---                          goal =<< conso x (list [Value 'a', x, Value 'c']) l
+--      runWith $ \l -> fresh >>= (\x ->
+--                          conjM [ pure $ list [Value 'd', Value 'a', x, Value 'c'] === l,
+--                                  conso x (list [Value 'a', x, Value 'c']) l])
 -- :}
 -- [Cons (Value 'd') (Cons (Value 'a') (Cons (Value 'd') (Cons (Value 'c') Nil)))]
 conso :: Eq a => Expr a -> Expr a -> RelationM a
-conso a d p = (goal =<< caro p a) >> (cdro p d) 
+conso a d p = conj <$> sequence [caro p a, cdro p d]
