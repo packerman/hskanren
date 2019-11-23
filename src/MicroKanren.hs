@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module MicroKanren(
     module MicroKanren.Types,
     module MicroKanren
@@ -14,7 +16,7 @@ import MicroKanren.Testing
 
 type LogicM = State Counter
 
-type Relation a = Expr a -> (Goal a)
+type Relation a = Expr a -> Goal a
 
 type RelationM a = Expr a -> LogicM (Goal a)
 
@@ -92,10 +94,14 @@ runWith f = eval $ fresh >>= (\q -> run' q (f q))
 conde :: [[Goal a]] -> Goal a
 conde = disj . map conj
 
+condeM :: Monad m => [[m (Goal a)]] -> m (Goal a)
+condeM = disjM . map conjM
+
 eval :: LogicM a -> a
-eval m = evalState m defaultCounter
+eval = flip evalState defaultCounter
 
 -- |
+-- >>> :set -XFlexibleContexts
 -- >>> :{
 --      let go = do x1 <- fresh
 --                  x2 <- fresh
@@ -104,5 +110,5 @@ eval m = evalState m defaultCounter
 --      in eval go
 -- :}
 -- (False,False,False)
-fresh :: LogicM (Expr a)
+fresh :: (MonadState Counter m) => m (Expr a)
 fresh = Variable <$> state getAndInc

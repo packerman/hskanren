@@ -91,3 +91,36 @@ cdro p d = fresh <&> (\a -> Cons a d === p)
 -- [Cons (Value 'd') (Cons (Value 'a') (Cons (Value 'd') (Cons (Value 'c') Nil)))]
 conso :: Eq a => Expr a -> Expr a -> RelationM a
 conso a d p = conj <$> sequence [caro p a, cdro p d]
+
+-- |
+-- >>> runWith (\_ -> pure $ nullo $ values [Grape, Raisin, Pear])
+-- []
+-- >>> runWith (\_ -> pure $ nullo Nil)
+-- [Reified 0]
+-- >>> runWith (\x -> pure $ nullo x)
+-- [Nil]
+nullo :: Eq a => Relation a
+nullo x = x === Nil
+
+-- |
+-- >>> :{
+-- run $ do
+--         x <- fresh
+--         y <- fresh
+--         pure (list [x, y],
+--                  appendo x y $ values "a")
+-- :}
+-- ()
+appendo :: Eq a => Expr a -> Expr a -> RelationM a
+appendo l t out = disjM [
+                        pure $ conj [nullo l, t === out],
+                        do
+                            a <- fresh
+                            d <- fresh
+                            res <- fresh
+                            conjM [
+                                conso a d l,
+                                conso a res out,
+                                appendo d t res
+                                ]
+                    ]
