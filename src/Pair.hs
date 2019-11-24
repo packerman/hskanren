@@ -108,9 +108,9 @@ nullo x = x === Nil
 --         x <- fresh
 --         y <- fresh
 --         pure (list [x, y],
---                  appendo x y $ values "a")
+--                  appendo x y $ values "abcde")
 -- :}
--- [(() ('a')),(('a') ())]
+-- [(() ('a' 'b' 'c' 'd' 'e')),(('a') ('b' 'c' 'd' 'e')),(('a' 'b') ('c' 'd' 'e')),(('a' 'b' 'c') ('d' 'e')),(('a' 'b' 'c' 'd') ('e')),(('a' 'b' 'c' 'd' 'e') ())]
 appendo :: Eq a => Expr a -> Expr a -> RelationM a
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
