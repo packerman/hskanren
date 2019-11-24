@@ -9,7 +9,10 @@ data Expr a = Value a |
                 Reified Int |
                 Nil |
                 Cons (Expr a) (Expr a)
-                deriving (Eq, Show)
+                deriving (Eq)
+
+instance Show a => Show (Expr a) where
+    show e = showExpr e True
 
 type Substitution a = M.Map Var (Expr a)
 
@@ -37,7 +40,7 @@ isList _ = False
 -- >>> showExpr (Value 5) True
 -- "5"
 -- >>> showExpr (Variable 3) True
--- "v3"
+-- "var3"
 -- >>> showExpr (Reified 1) True
 -- "_1"
 -- >>> showExpr Nil True
@@ -52,7 +55,7 @@ isList _ = False
 -- "((1 2) 3 4)"
 showExpr :: Show a => Expr a -> Bool -> String
 showExpr (Value x) _ = show x
-showExpr (Variable v) _ = 'v':show v
+showExpr (Variable v) _ = "var" ++ show v
 showExpr (Reified n) _ = '_':show n
 showExpr Nil _ = "()"
 showExpr (Cons a Nil) showParenths = parenths showParenths $ showExpr a True

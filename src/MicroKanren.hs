@@ -39,13 +39,13 @@ conjM = fmap conj . sequence
 -- >>> run $ fresh <&> (\q -> (q, pure $ pea === pod))
 -- []
 -- >>> run $ fresh <&> (\q -> (q, pure $ q === pea))
--- [Value "pea"]
+-- ["pea"]
 -- >>> run $ fresh <&> (\q -> (q, pure $ pea === q))
--- [Value "pea"]
+-- ["pea"]
 -- >>> run $ fresh <&> (\q -> (q, pure success))
--- [Reified 0]
+-- [_0]
 -- >>> run $ fresh <&> (\q -> (q, pure $ q === q))
--- [Reified 0]
+-- [_0]
 run :: LogicM (Expr a, LogicM (Goal a)) -> [Expr a]
 run m = eval $ m >>= (\(e, g) -> run' e g)
 
@@ -56,31 +56,31 @@ run' e g = map (reify e) <$> (g <*> pure emptySubst)
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
 -- >>> let [olive, oil] = Value <$> ["olive", "oil"]
 -- >>> runWith $ \q -> pure $ q === pea
--- [Value "pea"]
+-- ["pea"]
 -- >>> runWith $ \q -> fresh <&> (\x -> pea === q)
--- [Value "pea"]
+-- ["pea"]
 -- >>> runWith $ \q -> fresh <&> (\x -> pea === x)
--- [Reified 0]
+-- [_0]
 -- >>> runWith $ \q -> fresh <&> (\x -> list [x] === q)
--- [Cons (Reified 0) Nil]
+-- [(_0)]
 -- >>> runWith $ \q -> fresh <&> (\x -> x === q )
--- [Reified 0]
+-- [_0]
 -- >>> runWith $ \q -> pure $ list [pea, pod] === list[pea, q]
--- [Value "pod"]
+-- ["pod"]
 -- >>> runWith $ \q -> pure $ list [pea, pod] === list[q, pod]
--- [Value "pea"]
+-- ["pea"]
 -- >>> runWith $ \q -> fresh <&> (\x -> list [q, x] === list [x, pod])
--- [Value "pod"]
+-- ["pod"]
 -- >>> runWith $ \q -> fresh <&> (\x -> list [x, x] === q)
--- [Cons (Reified 0) (Cons (Reified 0) Nil)]
+-- [(_0 _0)]
 -- >>> runWith $ \q -> do { x <- fresh; y <- fresh; pure $ list [q, y] === list [list [x, y], x] }
--- [Cons (Reified 0) (Cons (Reified 0) Nil)]
+-- [(_0 _0)]
 -- >>> runWith $ \q -> do { x <- fresh; y <- fresh; pure $ list [x, y] === q }
--- [Cons (Reified 0) (Cons (Reified 1) Nil)]
+-- [(_0 _1)]
 -- >>> runWith $ \q -> do { x <- fresh; y <- fresh; pure $ list [x, y, x] === q }
--- [Cons (Reified 0) (Cons (Reified 1) (Cons (Reified 0) Nil))]
+-- [(_0 _1 _0)]
 -- >>> runWith $ \q -> pure $ disj2 (olive === q) (oil === q)
--- [Value "olive",Value "oil"]
+-- ["olive","oil"]
 runWith :: (Expr a -> LogicM (Goal a)) -> [Expr a]
 runWith f = eval $ fresh >>= (\q -> run' q (f q))
 
@@ -90,7 +90,7 @@ runWith f = eval $ fresh >>= (\q -> run' q (f q))
 --                                  [Value Olive === x, failure],
 --                                  [Value Oil === x]]
 -- :}
--- [Value Oil]
+-- [Oil]
 conde :: [[Goal a]] -> Goal a
 conde = disj . map conj
 

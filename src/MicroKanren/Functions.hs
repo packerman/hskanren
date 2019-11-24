@@ -13,13 +13,13 @@ emptySubst = M.empty
 -- |
 -- >>> let [x, y] = testVars 2
 -- >>> (ifte success (Value False === y) (Value True === y)) emptySubst
--- [fromList [(2,Value False)]]
+-- [fromList [(2,False)]]
 -- >>> (ifte failure (Value False === y) (Value True === y)) emptySubst
--- [fromList [(2,Value True)]]
+-- [fromList [(2,True)]]
 -- >>> (ifte (Value True === x) (Value False === y) (Value True === y)) emptySubst
--- [fromList [(1,Value True),(2,Value False)]]
+-- [fromList [(1,True),(2,False)]]
 -- >>> (ifte (disj2 (Value True === x) (Value False === x)) (Value False === y) (Value True === y)) emptySubst
--- [fromList [(1,Value True),(2,Value False)],fromList [(1,Value False),(2,Value False)]]
+-- [fromList [(1,True),(2,False)],fromList [(1,False),(2,False)]]
 ifte :: Goal a -> Goal a -> Goal a -> Goal a
 ifte g1 g2 g3 = \s -> case g1 s of
                         [] -> g3 s
@@ -28,14 +28,14 @@ ifte g1 g2 g3 = \s -> case g1 s of
 -- |
 -- >>> let [x, y] = testVars 2
 -- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptySubst
--- [fromList [(1,Value True),(2,Value False)]]
+-- [fromList [(1,True),(2,False)]]
 once :: Goal a -> Goal a
 once g = maybeToList . headMay . g
 
 -- |
 -- >>> let [x] = testVars 1
 -- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
--- [Value "olive",Value "oil"]
+-- ["olive","oil"]
 runGoal :: Int -> Goal a -> [Substitution a]
 runGoal n g = take n $ g emptySubst
 
@@ -46,7 +46,7 @@ runGoal n g = take n $ g emptySubst
 -- >>> let [ice, corn] = Value <$> ["ice", "corn"]
 -- >>> let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
 -- >>> (reify vx) s
--- Cons (Reified 0) (Cons (Cons (Reified 1) (Cons (Reified 0) Nil)) (Cons (Value "corn") (Cons (Reified 2) (Cons (Cons (Value "ice") (Cons (Reified 2) Nil)) Nil))))
+-- (_0 (_1 _0) "corn" _2 ("ice" _2))
 reify :: Expr a -> Substitution a -> Expr a
 reify v =
     \s -> let v' = walkMany v s
@@ -62,7 +62,7 @@ reifySubst v r = case walk v r of
 -- |
 -- >>> let [w, x, y, z] = [1..4]
 -- >>> walkMany (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
--- Cons (Value 'b') (Cons (Value 'e') (Cons (Variable 3) Nil))
+-- ('b' 'e' var3)
 walkMany :: Expr a -> Substitution a -> Expr a
 walkMany v s = case walk v s of
                 Cons a d -> Cons (walkMany a s) (walkMany d s)
@@ -76,9 +76,9 @@ walkMany v s = case walk v s of
 -- [fromList []]
 -- >>> let [x, y] = testVars 2
 -- >>> (x === y) emptySubst
--- [fromList [(1,Variable 2)]]
+-- [fromList [(1,var2)]]
 -- >>> (y === x) emptySubst
--- [fromList [(2,Variable 1)]]
+-- [fromList [(2,var1)]]
 (===) :: (Eq a) => Expr a -> Expr a -> Goal a
 u === v =
     \s -> maybeToList $ unify u v s
@@ -98,7 +98,7 @@ failure = const []
 -- |
 -- >>> let [x, y] = testVars 2
 -- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptySubst
--- [fromList [(1,Value "olive")],fromList [(1,Value "oil")]]
+-- [fromList [(1,"olive")],fromList [(1,"oil")]]
 disj2 :: Goal a -> Goal a -> Goal a
 disj2 g1 g2 =
     \s -> interleave (g1 s) (g2 s)
@@ -115,11 +115,11 @@ conj2 g1 g2 = concatMap g2 . g1
 -- >>> let [x, y] = testVars 2
 -- >>> let [a, e] = Value <$> ['a', 'e']
 -- >>> unify x a emptySubst
--- Just (fromList [(1,Value 'a')])
+-- Just (fromList [(1,'a')])
 -- >>> unify a y emptySubst
--- Just (fromList [(2,Value 'a')])
+-- Just (fromList [(2,'a')])
 -- >>> unify (Cons x a) (Cons e y) emptySubst
--- Just (fromList [(1,Value 'e'),(2,Value 'a')])
+-- Just (fromList [(1,'e'),(2,'a')])
 -- >>> unify (Cons a x) (Cons e y) emptySubst
 -- Nothing
 unify :: (Eq a) => Expr a -> Expr a -> Substitution a -> Maybe (Substitution a)
@@ -136,19 +136,19 @@ unify u v s =
 -- |
 -- >>> let [v, w, x, y, z] = [1..5]
 -- >>> walk (Variable z) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
--- Value 'a'
+-- 'a'
 -- >>> walk (Variable y) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
--- Value 'a'
+-- 'a'
 -- >>> walk (Variable x) $ M.fromList [(z, Value 'a'), (x, Variable w), (y, Variable z)]
--- Variable 2
+-- var2
 -- >>> walk (Variable x) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 4
+-- var4
 -- >>> walk (Variable v) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 4
+-- var4
 -- >>> walk (Variable w) $ M.fromList [(x, Variable y), (v, Variable x), (w, Variable x)]
--- Variable 4
+-- var4
 -- >>> walk (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
--- Cons (Variable 3) (Cons (Value 'e') (Cons (Variable 5) Nil))
+-- (var3 'e' var5)
 walk :: Expr a -> Substitution a -> Expr a
 walk v@(Variable x) s = case M.lookup x s of
                             Just e -> walk e s
@@ -165,7 +165,7 @@ walk e _ = e
 --    let s = M.fromList [(z, Variable x), (y, Variable z)]
 --        in walk (Variable y) <$> (extend x (Value 'e') s)
 -- :}
--- Just (Value 'e')
+-- Just 'e'
 extend :: Var -> Expr a -> Substitution a -> Maybe (Substitution a)
 extend x v s = if occurs x v s 
                 then Nothing
@@ -185,7 +185,7 @@ occurs x v s = case walk v s of
 
 -- |
 -- >>> list [Value 1, Value 2, Value 3, Value 4]
--- Cons (Value 1) (Cons (Value 2) (Cons (Value 3) (Cons (Value 4) Nil)))
+-- (1 2 3 4)
 list :: [Expr a] -> Expr a
 list = foldr Cons Nil
 
