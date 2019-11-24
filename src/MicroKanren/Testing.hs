@@ -4,17 +4,21 @@ import MicroKanren.Types
 
 data Symbol = Pea | Pod |
                 Olive | Oil |
-                Plum |
+                Plum | Pear |
+                Grape | Raisin |
                 Tea | Cup |
-                Fail
+                Fail |
+                A | B | C
                 deriving (Eq, Show, Ord, Enum)
 
-data Variable = U | V | W |
+data Variable = Q | R | S | T |
+                U | V | W |
                 X | Y | Z
                 deriving (Eq, Show, Ord, Enum)
 
-testVars :: [v] -> [Expr a v]
-testVars = (Variable <$>) . indexed
+testVars :: Integer -> [Expr a]
+testVars n = Variable <$> [1..n]
 
+-- TODO remove
 indexed :: [a] -> [(Int, a)]
 indexed = zip [0..]
