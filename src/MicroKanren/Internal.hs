@@ -1,6 +1,6 @@
 module MicroKanren.Internal where
 
-data Counter = Counter Int deriving (Show)
+data Counter = Counter Integer deriving (Show)
 
 -- | Return the current state of counter and increments
 -- 
@@ -17,11 +17,11 @@ data Counter = Counter Int deriving (Show)
 --                   state getAndInc
 --            c <- do
 --                   state getAndInc
---            return $ a + b + c :: State Counter Int
+--            return $ a + b + c :: State Counter Integer
 -- in evalState m defaultCounter
 -- :}
 -- 5
-getAndInc :: Counter -> (Int, Counter)
+getAndInc :: Counter -> (Integer, Counter)
 getAndInc (Counter n) = (n, Counter $ n + 1)
 
 defaultCounter :: Counter

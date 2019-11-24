@@ -110,7 +110,7 @@ nullo x = x === Nil
 --         pure (list [x, y],
 --                  appendo x y $ values "a")
 -- :}
--- ()
+-- [Cons Nil (Cons (Cons (Value 'a') Nil) Nil),Cons (Cons (Value 'a') Nil) (Cons Nil Nil)]
 appendo :: Eq a => Expr a -> Expr a -> RelationM a
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
