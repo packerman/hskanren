@@ -16,7 +16,7 @@ data Variable = Q | R | S | T |
                 X | Y | Z
                 deriving (Eq, Show, Ord, Enum)
 
-testVars :: Integer -> [Expr a]
+testVars :: Integer -> [Term f]
 testVars n = Variable <$> [1..n]
 
 -- TODO remove

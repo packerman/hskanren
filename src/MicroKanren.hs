@@ -16,20 +16,20 @@ import MicroKanren.Testing
 
 type LogicM = State Counter
 
-type Relation a = Expr a -> Goal a
+type Relation f = Term f -> Goal f
 
-type RelationM a = Expr a -> LogicM (Goal a)
+type RelationM f = Term f -> LogicM (Goal f)
 
-disj :: [Goal a] -> Goal a
+disj :: [Goal f] -> Goal f
 disj = foldr disj2 failure
 
-conj :: [Goal a] -> Goal a
+conj :: [Goal f] -> Goal f
 conj = foldr conj2 success
 
-disjM :: Monad m => [m (Goal a)] -> m (Goal a)
+disjM :: Monad m => [m (Goal f)] -> m (Goal f)
 disjM = fmap disj . sequence
 
-conjM :: Monad m => [m (Goal a)] -> m (Goal a)
+conjM :: Monad m => [m (Goal f)] -> m (Goal f)
 conjM = fmap conj . sequence
 
 -- |
@@ -46,10 +46,10 @@ conjM = fmap conj . sequence
 -- [_0]
 -- >>> run $ fresh <&> (\q -> (q, pure $ q === q))
 -- [_0]
-run :: LogicM (Expr a, LogicM (Goal a)) -> [Expr a]
+run :: (Unifiable f) => LogicM (Term f, LogicM (Goal f)) -> [Term f]
 run m = eval $ m >>= (\(e, g) -> run' e g)
 
-run' :: Expr a -> LogicM (Goal a) -> LogicM [Expr a]
+run' :: (Unifiable f) => Term f -> LogicM (Goal f) -> LogicM [Term f]
 run' e g = map (reify e) <$> (g <*> pure emptySubst)
 
 -- |
@@ -81,7 +81,7 @@ run' e g = map (reify e) <$> (g <*> pure emptySubst)
 -- [(_0 _1 _0)]
 -- >>> runWith $ \q -> pure $ disj2 (olive === q) (oil === q)
 -- ["olive","oil"]
-runWith :: (Expr a -> LogicM (Goal a)) -> [Expr a]
+runWith :: (Unifiable f) => (Term f -> LogicM (Goal f)) -> [Term f]
 runWith f = eval $ fresh >>= (\q -> run' q (f q))
 
 -- |
@@ -91,10 +91,10 @@ runWith f = eval $ fresh >>= (\q -> run' q (f q))
 --                                  [Value Oil === x]]
 -- :}
 -- [Oil]
-conde :: [[Goal a]] -> Goal a
+conde :: [[Goal f]] -> Goal f
 conde = disj . map conj
 
-condeM :: Monad m => [[m (Goal a)]] -> m (Goal a)
+condeM :: Monad m => [[m (Goal f)]] -> m (Goal f)
 condeM = disjM . map conjM
 
 eval :: LogicM a -> a
@@ -110,5 +110,5 @@ eval = flip evalState defaultCounter
 --      in eval go
 -- :}
 -- (False,False,False)
-fresh :: (MonadState Counter m) => m (Expr a)
+fresh :: (MonadState Counter m) => m (Term f)
 fresh = Variable <$> state getAndInc

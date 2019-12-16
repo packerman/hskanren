@@ -20,7 +20,7 @@ emptySubst = M.empty
 -- [fromList [(1,True),(2,False)]]
 -- >>> (ifte (disj2 (Value True === x) (Value False === x)) (Value False === y) (Value True === y)) emptySubst
 -- [fromList [(1,True),(2,False)],fromList [(1,False),(2,False)]]
-ifte :: Goal a -> Goal a -> Goal a -> Goal a
+ifte :: Goal f -> Goal f -> Goal f -> Goal f
 ifte g1 g2 g3 = \s -> case g1 s of
                         [] -> g3 s
                         s' -> concatMap g2 s'
@@ -29,14 +29,14 @@ ifte g1 g2 g3 = \s -> case g1 s of
 -- >>> let [x, y] = testVars 2
 -- >>> (ifte (once (disj2 (Value True === x) (Value False === x))) (Value False === y) (Value True === y)) emptySubst
 -- [fromList [(1,True),(2,False)]]
-once :: Goal a -> Goal a
+once :: Goal f -> Goal f
 once g = maybeToList . headMay . g
 
 -- |
 -- >>> let [x] = testVars 1
 -- >>> map (reify x) (runGoal 5 (disj2 (Value "olive" === x) (Value "oil" === x)))
 -- ["olive","oil"]
-runGoal :: Int -> Goal a -> [Substitution a]
+runGoal :: Int -> Goal f -> [Substitution f]
 runGoal n g = take n $ g emptySubst
 
 -- |
@@ -47,25 +47,49 @@ runGoal n g = take n $ g emptySubst
 -- >>> let s = M.fromList [(x, list [vu, vw, vy, vz, list [ice, vz]]), (y, corn), (w, list [vv, vu])]
 -- >>> (reify vx) s
 -- (_0 (_1 _0) "corn" _2 ("ice" _2))
-reify :: Expr a -> Substitution a -> Expr a
+reify :: (Unifiable f) => Term f -> Substitution f -> Term f
 reify v =
     \s -> let v' = walkMany v s
               r = reifySubst v' emptySubst
             in walkMany v' r
 
-reifySubst :: Expr a -> Substitution a -> Substitution a
+class Unifiable f where
+    genericReifySubst :: f (Term f) -> Substitution f -> Substitution f
+
+    genericWalkMany :: f (Term f) -> Substitution f -> f (Term f)
+
+    genericUnify :: f (Term f) -> f (Term f) -> Substitution f -> Maybe (Substitution f)
+
+    genericOccurs :: Var -> f (Term f) -> Substitution f -> Bool
+
+instance Unifiable Pair where
+    genericReifySubst (Cons a d) r = (genericReifySubst a r) & (genericReifySubst d)
+    genericReifySubst _ r = r
+
+    genericWalkMany (Cons a d) s = Cons (genericWalkMany a s) (genericWalkMany d s) 
+    genericWalkMany x _ = x
+
+    genericUnify (Cons ua ud) (Cons va vd) s = (genericUnify ua va s) >>= (genericUnify ud vd)
+    genericUnify u v s = if u == v then Just s else Nothing
+
+    genericOccurs x (Cons a d) s = genericOccurs x a s || genericOccurs x d s
+    genericOccurs _ _ _ = False
+
+    
+
+reifySubst :: (Unifiable f) => Term f -> Substitution f -> Substitution f
 reifySubst v r = case walk v r of
                         Variable x -> M.insert x (Reified $ M.size r) r
-                        Cons a d -> (reifySubst a r) & (reifySubst d)
+                        Term t -> genericReifySubst t r
                         _ -> r
 
 -- |
 -- >>> let [w, x, y, z] = [1..4]
 -- >>> walkMany (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
 -- ('b' 'e' var3)
-walkMany :: Expr a -> Substitution a -> Expr a
+walkMany :: (Unifiable f) => Term f -> Substitution f -> Term f
 walkMany v s = case walk v s of
-                Cons a d -> Cons (walkMany a s) (walkMany d s)
+                Term t -> Term $ genericWalkMany t s
                 x -> x
 
 
@@ -79,27 +103,27 @@ walkMany v s = case walk v s of
 -- [fromList [(1,var2)]]
 -- >>> (y === x) emptySubst
 -- [fromList [(2,var1)]]
-(===) :: (Eq a) => Expr a -> Expr a -> Goal a
+(===) :: (Eq (f (Term f)), Unifiable f) => Term f -> Term f -> Goal f
 u === v =
     \s -> maybeToList $ unify u v s
 
 -- |
 -- >>> success emptySubst
 -- [fromList []]
-success :: Goal a
+success :: Goal f
 success = pure
 
 -- |
 -- >>> failure emptySubst
 -- []
-failure :: Goal a
+failure :: Goal f
 failure = const []
 
 -- |
 -- >>> let [x, y] = testVars 2
 -- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptySubst
 -- [fromList [(1,"olive")],fromList [(1,"oil")]]
-disj2 :: Goal a -> Goal a -> Goal a
+disj2 :: Goal f -> Goal f -> Goal f
 disj2 g1 g2 =
     \s -> interleave (g1 s) (g2 s)
     where
@@ -108,7 +132,7 @@ disj2 g1 g2 =
         interleave _ y = y
 
 -- |
-conj2 :: Goal a -> Goal a -> Goal a
+conj2 :: Goal f -> Goal f -> Goal f
 conj2 g1 g2 = concatMap g2 . g1
 
 -- |
@@ -122,7 +146,7 @@ conj2 g1 g2 = concatMap g2 . g1
 -- Just (fromList [(1,'e'),(2,'a')])
 -- >>> unify (Cons a x) (Cons e y) emptySubst
 -- Nothing
-unify :: (Eq a) => Expr a -> Expr a -> Substitution a -> Maybe (Substitution a)
+unify :: (Eq (f (Term f)), Unifiable f) => Term f -> Term f -> Substitution f -> Maybe (Substitution f)
 unify u v s = 
     let u' = walk u s
         v' = walk v s in
@@ -130,7 +154,7 @@ unify u v s =
             else case (u', v') of
                     (Variable x, _) -> extend x v' s
                     (_, Variable y) -> extend y u' s
-                    (Cons ua ud, Cons va vd) -> (unify ua va s) >>= (unify ud vd)
+                    (Term tu, Term tv) -> genericUnify tu tv s
                     _ -> Nothing
 
 -- |
@@ -149,7 +173,7 @@ unify u v s =
 -- var4
 -- >>> walk (Variable w) $ M.fromList [(x, Value 'b'), (z, Variable y), (w, list [Variable x, Value 'e', Variable z])]
 -- (var3 'e' var5)
-walk :: Expr a -> Substitution a -> Expr a
+walk :: Term f -> Substitution f -> Term f
 walk v@(Variable x) s = case M.lookup x s of
                             Just e -> walk e s
                             _ -> v
@@ -166,7 +190,7 @@ walk e _ = e
 --        in walk (Variable y) <$> (extend x (Value 'e') s)
 -- :}
 -- Just 'e'
-extend :: Var -> Expr a -> Substitution a -> Maybe (Substitution a)
+extend :: (Unifiable f) => Var -> Term f -> Substitution f -> Maybe (Substitution f)
 extend x v s = if occurs x v s 
                 then Nothing
                 else Just $ M.insert x v s
@@ -177,17 +201,17 @@ extend x v s = if occurs x v s
 -- True 
 -- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
 -- True
-occurs :: Var -> (Expr a) -> Substitution a -> Bool
+occurs :: (Unifiable f) => Var -> (Term f) -> Substitution f -> Bool
 occurs x v s = case walk v s of
                 Variable y -> y == x
-                Cons a d -> occurs x a s || occurs x d s
+                Term t -> genericOccurs x t s
                 _ -> False
 
 -- |
 -- >>> list [Value 1, Value 2, Value 3, Value 4]
 -- (1 2 3 4)
-list :: [Expr a] -> Expr a
+list :: [Pair a] -> Pair a
 list = foldr Cons Nil
 
-values :: [a] -> Expr a
+values :: [a] -> Pair a
 values = list . map Value

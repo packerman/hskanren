@@ -1,22 +1,41 @@
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
+
 module MicroKanren.Types where
 
 import qualified Data.Map as M
 
 type Var = Integer
 
-data Expr a = Value a |
-                Variable Var |
+data Term f = Variable Var |
                 Reified Int |
-                Nil |
-                Cons (Expr a) (Expr a)
-                deriving (Eq)
+                Term (f (Term f))
 
-instance Show a => Show (Expr a) where
-    show e = showExpr e True
+deriving instance (Eq (f (Term f))) => Eq (Term f)
 
-type Substitution a = M.Map Var (Expr a)
+instance (Show (f (Term f))) => Show (Term f) where
+    show = showTerm
 
-type Goal a = Substitution a -> [Substitution a]
+data Pair a = Value a |
+              Nil |
+              Cons (Pair a) (Pair a)
+              deriving (Eq)
+
+instance Show a => Show (Pair a) where
+    show e = showPair e True
+
+type Substitution f = M.Map Var (Term f)
+
+type Goal f = Substitution f -> [Substitution f]
+
+-- >>> showTerm (Variable 3) True
+-- "var3"
+-- >>> showTerm (Reified 1) True
+-- "_1"
+showTerm :: (Show (f (Term f))) => Term f -> String
+showTerm (Variable v) = "var" ++ show v
+showTerm (Reified n) = '_':show n
+showTerm (Term t) = show t
 
 -- |
 -- >>> isList Nil
@@ -31,37 +50,31 @@ type Goal a = Substitution a -> [Substitution a]
 -- False
 -- >>> isList (Reified 0)
 -- False
-isList :: Expr a -> Bool
+isList :: Pair a -> Bool
 isList Nil = True
 isList (Cons a d) = isList d
 isList _ = False
 
 -- |
--- >>> showExpr (Value 5) True
+-- >>> showPair (Value 5) True
 -- "5"
--- >>> showExpr (Variable 3) True
--- "var3"
--- >>> showExpr (Reified 1) True
--- "_1"
--- >>> showExpr Nil True
+-- >>> showPair Nil True
 -- "()"
--- >>> showExpr (Cons (Value 5) (Value 3)) True
+-- >>> showPair (Cons (Value 5) (Value 3)) True
 -- "(5 . 3)"
--- >>> showExpr (Cons (Value 2) Nil) True
+-- >>> showPair (Cons (Value 2) Nil) True
 -- "(2)"
--- >>> showExpr (Cons (Value 1) (Cons (Value 2) Nil)) True
+-- >>> showPair (Cons (Value 1) (Cons (Value 2) Nil)) True
 -- "(1 2)"
--- >>> showExpr (Cons (Cons (Value 1) (Cons (Value 2) Nil)) (Cons (Value 3) (Cons (Value 4) Nil))) True
+-- >>> showPair (Cons (Cons (Value 1) (Cons (Value 2) Nil)) (Cons (Value 3) (Cons (Value 4) Nil))) True
 -- "((1 2) 3 4)"
-showExpr :: Show a => Expr a -> Bool -> String
-showExpr (Value x) _ = show x
-showExpr (Variable v) _ = "var" ++ show v
-showExpr (Reified n) _ = '_':show n
-showExpr Nil _ = "()"
-showExpr (Cons a Nil) showParenths = parenths showParenths $ showExpr a True
-showExpr (Cons a d) showParenths = parenths showParenths $ showExpr a True ++ 
+showPair :: Show a => Pair a -> Bool -> String
+showPair (Value x) _ = show x
+showPair Nil _ = "()"
+showPair (Cons a Nil) showParenths = parenths showParenths $ showPair a True
+showPair (Cons a d) showParenths = parenths showParenths $ showPair a True ++ 
                                                             (if isList d then " " else " . ") ++ 
-                                                            showExpr d False
+                                                            showPair d False
     
 parenths True s = "(" ++ s ++ ")"
 parenths False s = s

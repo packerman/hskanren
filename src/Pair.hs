@@ -29,8 +29,8 @@ import MicroKanren.Testing
 --                                  pure $ (Cons x y) === r]
 -- :}
 -- [(Grape A)]
-caro :: Eq a => Expr a -> RelationM a
-caro p a = fresh <&> (\d -> Cons a d === p)
+caro :: Term Pair -> RelationM Pair
+caro p a = fresh <&> (\d -> Term (Cons a d) === p)
 
 -- |
 -- >>> :{
@@ -63,7 +63,7 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --                                          pure $ (Value 'a') === x])
 -- :}
 -- [('a' 'c' 'o' 'r' 'n')]
-cdro :: Eq a => Expr a -> RelationM a
+cdro :: Term Pair -> RelationM Pair
 cdro p d = fresh <&> (\a -> Cons a d === p)
 
 -- |
@@ -89,7 +89,7 @@ cdro p d = fresh <&> (\a -> Cons a d === p)
 --                                  conso x (list [Value 'a', x, Value 'c']) l])
 -- :}
 -- [('d' 'a' 'd' 'c')]
-conso :: Eq a => Expr a -> Expr a -> RelationM a
+conso :: Term Pair -> Term Pair -> RelationM Pair
 conso a d p = conj <$> sequence [caro p a, cdro p d]
 
 -- |
@@ -99,7 +99,7 @@ conso a d p = conj <$> sequence [caro p a, cdro p d]
 -- [_0]
 -- >>> runWith (\x -> pure $ nullo x)
 -- [()]
-nullo :: Eq a => Relation a
+nullo :: Relation Pair
 nullo x = x === Nil
 
 -- |
@@ -111,7 +111,7 @@ nullo x = x === Nil
 --                  appendo x y $ values "abcde")
 -- :}
 -- [(() ('a' 'b' 'c' 'd' 'e')),(('a') ('b' 'c' 'd' 'e')),(('a' 'b') ('c' 'd' 'e')),(('a' 'b' 'c') ('d' 'e')),(('a' 'b' 'c' 'd') ('e')),(('a' 'b' 'c' 'd' 'e') ())]
-appendo :: Eq a => Expr a -> Expr a -> RelationM a
+appendo :: Term Pair -> Term Pair -> RelationM Pair
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
                         do
