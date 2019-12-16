@@ -114,13 +114,13 @@ nullo x = x === Nil
 appendo :: Eq a => Expr a -> Expr a -> RelationM a
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
-                        do
-                            a <- fresh
-                            d <- fresh
-                            res <- fresh
-                            conjM [
-                                conso a d l,
-                                conso a res out,
-                                appendo d t res
-                                ]
-                    ]
+                        fresh >>= (\a -> 
+                            fresh >>= (\d -> 
+                                fresh >>= (\res -> conjM [
+                                                    conso a d l,
+                                                    conso a res out,
+                                                    appendo d t res]
+                                            )
+                                        )
+                                    )
+                        ]
