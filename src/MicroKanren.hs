@@ -34,23 +34,20 @@ conjM = fmap conj . sequence
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
--- >>> run $ fresh <&> (\q -> (q, pure failure))
+-- >>> eval $ fresh <&> (flip run failure)
 -- []
--- >>> run $ fresh <&> (\q -> (q, pure $ pea === pod))
+-- >>> eval $ fresh <&> (flip run $ pea === pod)
 -- []
--- >>> run $ fresh <&> (\q -> (q, pure $ q === pea))
+-- >>> eval $ fresh <&> (\q -> run q $ q === pea)
 -- ["pea"]
--- >>> run $ fresh <&> (\q -> (q, pure $ pea === q))
+-- >>> eval $ fresh <&> (\q -> run q $ pea === q)
 -- ["pea"]
--- >>> run $ fresh <&> (\q -> (q, pure success))
+-- >>> eval $ fresh <&> (flip run success)
 -- [_0]
--- >>> run $ fresh <&> (\q -> (q, pure $ q === q))
+-- >>> eval $ fresh <&> (\q -> run q $ q === q)
 -- [_0]
-run :: LogicM (Expr a, LogicM (Goal a)) -> [Expr a]
-run m = eval $ m >>= (\(e, g) -> run' e g)
-
-run' :: Expr a -> LogicM (Goal a) -> LogicM [Expr a]
-run' e g = map (reify e) <$> (g <*> pure emptySubst)
+run :: Expr a -> Goal a -> [Expr a]
+run e g = map (reify e) $ g emptySubst
 
 -- |
 -- >>> let [pea, pod] = Value <$> ["pea", "pod"]
@@ -82,7 +79,7 @@ run' e g = map (reify e) <$> (g <*> pure emptySubst)
 -- >>> runWith $ \q -> pure $ disj2 (olive === q) (oil === q)
 -- ["olive","oil"]
 runWith :: (Expr a -> LogicM (Goal a)) -> [Expr a]
-runWith f = eval $ fresh >>= (\q -> run' q (f q))
+runWith f = eval $ fresh >>= (\q -> run q <$> f q)
 
 -- |
 -- >>> :{
