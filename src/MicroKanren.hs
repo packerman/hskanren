@@ -81,6 +81,11 @@ run e g = map (reify e) $ g emptySubst
 runWith :: (Expr a -> LogicM (Goal a)) -> [Expr a]
 runWith f = eval $ fresh >>= (\q -> run q <$> f q)
 
+runWith2 :: (Expr a -> Expr a -> LogicM (Goal a)) -> [Expr a]
+runWith2 f = eval $ fresh >>= (\q ->
+                        fresh >>= (\r ->
+                            run (list [q, r]) <$> f q r))
+
 -- |
 -- >>> :{
 --  runWith $ \x -> pure $ conde [

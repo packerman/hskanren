@@ -103,12 +103,7 @@ nullo :: Eq a => Relation a
 nullo x = x === Nil
 
 -- |
--- >>> :{
--- eval $ do
---         x <- fresh
---         y <- fresh
---         run (list [x, y]) <$> (appendo x y $ values "abcde")
--- :}
+-- runWith2 (\x y -> appendo x y $ values "abcde")
 -- [(() ('a' 'b' 'c' 'd' 'e')),(('a') ('b' 'c' 'd' 'e')),(('a' 'b') ('c' 'd' 'e')),(('a' 'b' 'c') ('d' 'e')),(('a' 'b' 'c' 'd') ('e')),(('a' 'b' 'c' 'd' 'e') ())]
 appendo :: Eq a => Expr a -> Expr a -> RelationM a
 appendo l t out = disjM [
