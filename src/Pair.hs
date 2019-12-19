@@ -12,21 +12,17 @@ import MicroKanren.Testing
 -- >>> runWith $ \q -> caro (values "acorn") (Value 'a')
 -- [_0]
 -- >>> :{
---      runWith $ \r -> do
---                          x <- fresh
---                          y <- fresh
---                          conjM [caro (list [r, y]) x, 
---                                              pure $ (Value Pear) === x]
+--      runWith $ \r -> fresh2 >>= (\(x, y) ->
+--                           conjM [caro (list [r, y]) x, 
+--                                   pure $ (Value Pear) === x])
 -- :}
 -- [Pear]
 --
 -- >>> :{
---      runWith $ \r -> do
---                          x <- fresh
---                          y <- fresh
+--      runWith $ \r -> fresh2 >>= (\(x, y) ->
 --                          conjM [caro (values [Grape, Raisin, Pear]) x,
 --                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
---                                  pure $ (Cons x y) === r]
+--                                  pure $ (Cons x y) === r])
 -- :}
 -- [(Grape A)]
 caro :: Eq a => Expr a -> RelationM a
@@ -44,12 +40,10 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 -- ['o']
 --
 -- >>> :{
---      runWith $ \r -> do
---                          x <- fresh
---                          y <- fresh
+--      runWith $ \r -> fresh2 >>= (\(x, y) -> 
 --                          conjM [cdro (values [Grape, Raisin, Pear]) x,
 --                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
---                                  pure $ (Cons x y) === r]
+--                                  pure $ (Cons x y) === r])
 -- :}
 -- [((Raisin Pear) A)]
 --
@@ -58,9 +52,9 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --
 -- >>> :{
 --      runWith $ \l -> fresh>>= (\x -> 
---                                  conjM [cdro l (values "corn"),
---                                          caro l x,
---                                          pure $ (Value 'a') === x])
+--                            conjM [cdro l (values "corn"),
+--                                   caro l x,
+--                                   pure $ (Value 'a') === x])
 -- :}
 -- [('a' 'c' 'o' 'r' 'n')]
 cdro :: Eq a => Expr a -> RelationM a
@@ -72,12 +66,9 @@ cdro p d = fresh <&> (\a -> Cons a d === p)
 -- >>> runWith $ (\x -> conso x (values "abc") (values "dabc"))
 -- ['d']
 -- >>> :{
---      runWith $ \r -> do
---                          x <- fresh
---                          y <- fresh
---                          z <- fresh
---                          conjM [pure $ list [Value 'e', Value 'a', Value 'd', x] === r,
---                                 conso y (list [Value 'a', z, Value 'c']) r]
+--      runWith $ \r -> fresh3 >>= (\(x, y, z) -> 
+--                         conjM [pure $ list [Value 'e', Value 'a', Value 'd', x] === r,
+--                                conso y (list [Value 'a', z, Value 'c']) r])
 -- :}
 -- [('e' 'a' 'd' 'c')]
 --
@@ -103,18 +94,14 @@ nullo :: Eq a => Relation a
 nullo x = x === Nil
 
 -- |
--- runWith2 (\x y -> appendo x y $ values "abcde")
+-- >>> runWith2 (\x y -> appendo x y $ values "abcde")
 -- [(() ('a' 'b' 'c' 'd' 'e')),(('a') ('b' 'c' 'd' 'e')),(('a' 'b') ('c' 'd' 'e')),(('a' 'b' 'c') ('d' 'e')),(('a' 'b' 'c' 'd') ('e')),(('a' 'b' 'c' 'd' 'e') ())]
 appendo :: Eq a => Expr a -> Expr a -> RelationM a
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
-                        fresh >>= (\a -> 
-                            fresh >>= (\d -> 
-                                fresh >>= (\res -> conjM [
-                                                    conso a d l,
-                                                    conso a res out,
-                                                    appendo d t res]
-                                            )
-                                        )
+                        fresh3 >>= (\(a, d, res) -> conjM [
+                                                        conso a d l,
+                                                        conso a res out,
+                                                        appendo d t res]
                                     )
                         ]

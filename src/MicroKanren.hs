@@ -6,6 +6,7 @@ module MicroKanren(
     ) 
 where
 
+import Control.Monad
 import Control.Monad.State
 import Data.Functor
 
@@ -96,9 +97,6 @@ runWith2 f = eval $ fresh >>= (\q ->
 conde :: [[Goal a]] -> Goal a
 conde = disj . map conj
 
-condeM :: Monad m => [[m (Goal a)]] -> m (Goal a)
-condeM = disjM . map conjM
-
 eval :: LogicM a -> a
 eval = flip evalState defaultCounter
 
@@ -114,3 +112,15 @@ eval = flip evalState defaultCounter
 -- (False,False,False)
 fresh :: (MonadState Counter m) => m (Expr a)
 fresh = Variable <$> state getAndInc
+
+-- |
+-- >>> eval $ fresh2
+-- (var0,var1)
+fresh2 :: (MonadState Counter m) => m (Expr a, Expr a)
+fresh2 = liftM2 (,) fresh fresh
+
+-- |
+-- >>> eval $ fresh3
+-- (var0,var1,var2)
+fresh3 :: (MonadState Counter m) => m (Expr a, Expr a, Expr a)
+fresh3 = liftM3 (,,) fresh fresh fresh
