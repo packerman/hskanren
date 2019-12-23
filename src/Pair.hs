@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Pair where
 
 import Data.Functor
 
 import MicroKanren
 import MicroKanren.Functions
+import MicroKanren.Pair
 import MicroKanren.Testing
 
 -- |
@@ -22,11 +25,11 @@ import MicroKanren.Testing
 --      runWith $ \r -> fresh2 >>= (\(x, y) ->
 --                          conjM [caro (values [Grape, Raisin, Pear]) x,
 --                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
---                                  pure $ (Cons x y) === r])
+--                                  pure $ (Term $ Cons x y) === r])
 -- :}
 -- [(Grape A)]
-caro :: Eq a => Expr a -> RelationM a
-caro p a = fresh <&> (\d -> Cons a d === p)
+caro :: (Eq a) => Expr a -> RelationM Pair a Integer
+caro p a = fresh <&> (\d -> Term (Cons a d) === p)
 
 -- |
 -- >>> :{
@@ -43,7 +46,7 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --      runWith $ \r -> fresh2 >>= (\(x, y) -> 
 --                          conjM [cdro (values [Grape, Raisin, Pear]) x,
 --                                  caro (list [list [Value A], list [Value B], list [Value C]]) y,
---                                  pure $ (Cons x y) === r])
+--                                  pure $ (Term $ Cons x y) === r])
 -- :}
 -- [((Raisin Pear) A)]
 --
@@ -57,8 +60,8 @@ caro p a = fresh <&> (\d -> Cons a d === p)
 --                                   pure $ (Value 'a') === x])
 -- :}
 -- [('a' 'c' 'o' 'r' 'n')]
-cdro :: Eq a => Expr a -> RelationM a
-cdro p d = fresh <&> (\a -> Cons a d === p)
+cdro :: (Eq a) => Expr a -> RelationM Pair a Integer
+cdro p d = fresh <&> (\a -> Term (Cons a d) === p)
 
 -- |
 -- >>> runWith $ (\l -> conso (values "abc") (values "de") l)
@@ -80,23 +83,23 @@ cdro p d = fresh <&> (\a -> Cons a d === p)
 --                                  conso x (list [Value 'a', x, Value 'c']) l])
 -- :}
 -- [('d' 'a' 'd' 'c')]
-conso :: Eq a => Expr a -> Expr a -> RelationM a
+conso :: (Eq a) => Expr a -> Expr a -> RelationM Pair a Integer
 conso a d p = conj <$> sequence [caro p a, cdro p d]
 
 -- |
 -- >>> runWith (\_ -> pure $ nullo $ values [Grape, Raisin, Pear])
 -- []
--- >>> runWith (\_ -> pure $ nullo Nil)
+-- >>> runWith (\_ -> pure $ nullo $ Term Nil)
 -- [_0]
 -- >>> runWith (\x -> pure $ nullo x)
 -- [()]
-nullo :: Eq a => Relation a
-nullo x = x === Nil
+nullo :: (Eq a) => Relation Pair a Integer
+nullo x = x === Term Nil
 
 -- |
 -- >>> runWith2 (\x y -> appendo x y $ values "abcde")
 -- [(() ('a' 'b' 'c' 'd' 'e')),(('a') ('b' 'c' 'd' 'e')),(('a' 'b') ('c' 'd' 'e')),(('a' 'b' 'c') ('d' 'e')),(('a' 'b' 'c' 'd') ('e')),(('a' 'b' 'c' 'd' 'e') ())]
-appendo :: Eq a => Expr a -> Expr a -> RelationM a
+appendo :: (Eq a) => Expr a -> Expr a -> RelationM Pair a Integer
 appendo l t out = disjM [
                         pure $ conj [nullo l, t === out],
                         fresh3 >>= (\(a, d, res) -> conjM [

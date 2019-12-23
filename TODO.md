@@ -1,6 +1,7 @@
 TODO
 ====
 
-1. Refactor conde to have LogiM (Goal) intead of Goal
-1. Refactor === to have LogicM (Goal) return type
-1. Consider suucess and value to be LogicM (Goal)
+1. Move all tests to hspec
+1. Separate show instances for Term and Pair, now mixed in Expr
+1. Examples and tests for lists
+1. Examples and tests for natural numbers as Zero | Succ Nat
