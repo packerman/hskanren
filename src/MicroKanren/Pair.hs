@@ -1,6 +1,6 @@
 module MicroKanren.Pair where
 
-data Pair a = Cons a a | Nil deriving (Eq)
+data Pair a = Cons a a | Nil deriving (Eq, Show)
 
 instance Foldable Pair where
     foldMap f (Cons a b) = f a <> f b

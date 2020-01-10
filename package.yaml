@@ -49,5 +49,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - hskanren
-    - doctest
-    - doctest-discover
+    - hspec
