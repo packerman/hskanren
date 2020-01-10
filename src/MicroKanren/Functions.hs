@@ -45,22 +45,12 @@ walkMany v s = case walk v s of
 u === v =
     \s -> maybeToList $ unify u v s
 
--- |
--- >>> success (emptySubst :: Substitution Pair () Integer)
--- [fromList []]
 success :: Goal f a v
 success = pure
 
--- |
--- >>> failure (emptySubst :: Substitution Pair () Integer)
--- []
 failure :: Goal f a v
 failure = const []
 
--- |
--- >>> let [x, y] = testVars 2
--- >>> (disj2 (Value "olive" === x) (Value "oil" === x)) emptySubst
--- [fromList [(1,"olive")],fromList [(1,"oil")]]
 disj2 :: Goal f a v -> Goal f a v -> Goal f a v
 disj2 g1 g2 =
     \s -> interleave (g1 s) (g2 s)
@@ -69,21 +59,9 @@ disj2 g1 g2 =
         interleave (x:xs) y = x : interleave y xs
         interleave _ y = y
 
--- |
 conj2 :: Goal f a v -> Goal f a v -> Goal f a v
 conj2 g1 g2 = concatMap g2 . g1
 
--- |
--- >>> let [x, y] = testVars 2
--- >>> let [a, e] = Value <$> ['a', 'e']
--- >>> unify x a emptySubst
--- Just (fromList [(1,'a')])
--- >>> unify a y emptySubst
--- Just (fromList [(2,'a')])
--- >>> unify (Term $ Cons x a) (Term $ Cons e y) emptySubst
--- Just (fromList [(1,'e'),(2,'a')])
--- >>> unify (Term $ Cons a x) (Term $ Cons e y) emptySubst
--- Nothing
 unify :: (Eq a, Ord v, Foldable f, Eq (f (Term f a v))) => Term f a v -> Term f a v -> Substitution f a v -> Maybe (Substitution f a v)
 unify u v s = 
     let u' = walk u s
@@ -106,37 +84,17 @@ walk v@(Variable x) s = case M.lookup x s of
                             _ -> v
 walk e _ = e
 
--- |
--- >>> let [x, y, z] = [1..3]
--- >>> extend x (list [Variable x]) emptySubst
--- Nothing
--- >>> extend x (list [Variable y]) (M.fromList [(y, Variable x)])
--- Nothing
--- >>> :{ 
---    let s = M.fromList [(z, Variable x), (y, Variable z)] :: Substitution Pair a Integer
---        in walk (Variable y) <$> (extend x (Value 'e') s)
--- :}
--- Just 'e'
 extend :: (Ord v, Foldable f) => v -> Term f a v -> Substitution f a v -> Maybe (Substitution f a v)
 extend x v s = if occurs x v s 
                 then Nothing
                 else Just $ M.insert x v s
 
--- |
--- >>> let [x, y] = [1..2]
--- >>> occurs x (Variable x) emptySubst
--- True 
--- >>> occurs x (list [Variable y]) (M.fromList [(y, Variable x)])
--- True
 occurs :: (Ord v, Foldable f) => v -> Term f a v -> Substitution f a v -> Bool
 occurs x v s = case walk v s of
                 Variable y -> y == x
                 Term ts -> any (\t -> occurs x t s) ts
                 _ -> False
 
--- |
--- >>> list [Value 1, Value 2, Value 3, Value 4]
--- (1 2 3 4)
 list :: [Expr a] -> Expr a
 list = foldr (\e -> Term . Cons e) (Term Nil)
 
